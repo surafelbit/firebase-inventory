@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyCAGndhjYm-lfeFocrTKHsiRXkXFC4RGNc",
   authDomain: "inventory-app-19292.firebaseapp.com",
   projectId: "inventory-app-19292",

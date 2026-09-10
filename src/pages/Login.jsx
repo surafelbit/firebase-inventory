@@ -1,13 +1,45 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
 import { auth } from "../firebase";
+const googleProvider = new GoogleAuthProvider();
+
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const handleGoogleLogin = async () => {
+    try {
+      setError("");
+      setLoading(true);
+
+      console.log("Google login started");
+
+      const result = await signInWithPopup(auth, googleProvider);
+
+      console.log("Google login successful:", result.user);
+
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Google login error:", error);
+
+      if (error.code === "auth/popup-closed-by-user") {
+        setError("Google sign-in was cancelled.");
+      } else if (error.code === "auth/popup-blocked") {
+        setError("The Google popup was blocked by your browser.");
+      } else {
+        setError(error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -110,13 +142,6 @@ function Login() {
                 <div className="mb-2 flex justify-between">
                   {" "}
                   <label className="text-sm font-medium">Password</label>{" "}
-                  <button
-                    type="button"
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
-                  >
-                    {" "}
-                    Forgot password?{" "}
-                  </button>{" "}
                 </div>{" "}
                 <input
                   type="password"
@@ -147,6 +172,27 @@ function Login() {
                 Create one{" "}
               </Link>{" "}
             </p>{" "}
+            <Link
+              to="/forgot-password"
+              className="text-xs text-indigo-400 hover:text-indigo-300"
+            >
+              Forgot password?
+            </Link>
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-white/10"></div>
+              <span className="text-xs text-slate-500">OR</span>
+              <div className="h-px flex-1 bg-white/10"></div>
+            </div>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-white px-4 py-3 font-semibold text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="text-lg font-bold">G</span>
+              Continue with Google
+            </button>
+
           </div>{" "}
         </div>{" "}
       </div>{" "}
