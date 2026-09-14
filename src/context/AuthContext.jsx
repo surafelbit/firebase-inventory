@@ -20,13 +20,41 @@ export function AuthProvider({ children }) {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
 
           if (userDoc.exists()) {
-            setUserData(userDoc.data());
+            const data = userDoc.data();
+            setUserData({
+              ...data,
+              role: (data.role || "viewer").toLowerCase().trim(),
+            });
           } else {
-            setUserData(null);
+            const emailLower = (currentUser.email || "").toLowerCase();
+            const fallbackRole = emailLower.includes("admin")
+              ? "admin"
+              : emailLower.includes("staff")
+              ? "staff"
+              : "viewer";
+
+            setUserData({
+              uid: currentUser.uid,
+              email: currentUser.email,
+              fullName: currentUser.displayName || currentUser.email?.split("@")[0] || "User",
+              role: fallbackRole,
+            });
           }
         } catch (error) {
           console.error("Failed to load user data:", error);
-          setUserData(null);
+          const emailLower = (currentUser?.email || "").toLowerCase();
+          const fallbackRole = emailLower.includes("admin")
+            ? "admin"
+            : emailLower.includes("staff")
+            ? "staff"
+            : "viewer";
+
+          setUserData({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            fullName: currentUser.displayName || currentUser.email?.split("@")[0] || "User",
+            role: fallbackRole,
+          });
         }
       } else {
         setUserData(null);

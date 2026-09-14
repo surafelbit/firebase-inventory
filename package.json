@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "emulators": "firebase emulators:start",
+    "seed": "node functions/seed.cjs",
+    "start": "concurrently --kill-others-on-fail --names \"EMU,SEED,UI\" --prefix-colors \"blue,green,magenta\" \"firebase emulators:start\" \"wait-on http://127.0.0.1:5001/inventory-app-19292/us-central1/api/health && node functions/seed.cjs\" \"wait-on http://127.0.0.1:5001/inventory-app-19292/us-central1/api/health && vite\""
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

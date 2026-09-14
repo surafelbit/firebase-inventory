@@ -1,297 +1,411 @@
 import { Link } from "react-router-dom";
-function Landing() {
+import { useEffect, useRef, useState } from "react";
+
+/* ─── tiny animated counter hook ─── */
+function useCounter(target, duration = 1800) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    let start = null;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      setVal(Math.floor(p * target));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return val;
+}
+
+/* ─── stock item row ─── */
+function StockRow({ icon, name, sku, qty, status, pct, colorClass, bgClass, borderClass, textClass }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      {" "}
-      {/* Navbar */}{" "}
-      <nav className="border-b border-white/10">
-        {" "}
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          {" "}
-          <Link to="/" className="flex items-center gap-3">
-            {" "}
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500 font-bold">
-              {" "}
-              I{" "}
-            </div>{" "}
-            <span className="text-xl font-bold tracking-tight">
-              {" "}
-              InventoryPro{" "}
-            </span>{" "}
-          </Link>{" "}
-          <div className="hidden items-center gap-8 md:flex">
-            {" "}
-            <a
-              href="#features"
-              className="text-sm text-slate-300 transition hover:text-white"
-            >
-              {" "}
-              Features{" "}
-            </a>{" "}
-            <a
-              href="#about"
-              className="text-sm text-slate-300 transition hover:text-white"
-            >
-              {" "}
-              About{" "}
-            </a>{" "}
-            <Link
-              to="/login"
-              className="text-sm text-slate-300 transition hover:text-white"
-            >
-              {" "}
-              Login{" "}
-            </Link>{" "}
-            <Link
-              to="/register"
-              className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-            >
-              {" "}
-              Get Started{" "}
-            </Link>{" "}
-          </div>{" "}
-        </div>{" "}
-      </nav>{" "}
-      {/* Hero */}{" "}
-      <main>
-        {" "}
-        <section className="relative overflow-hidden">
-          {" "}
-          <div className="mx-auto grid max-w-7xl items-center gap-16 px-6 py-24 lg:grid-cols-2 lg:py-32">
-            {" "}
-            <div>
-              {" "}
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-400/10 px-4 py-2 text-sm text-indigo-300">
-                {" "}
-                <span className="h-2 w-2 rounded-full bg-indigo-400" /> Smart
-                Inventory Management{" "}
-              </div>{" "}
-              <h1 className="max-w-3xl text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
-                {" "}
-                Take control of your{" "}
-                <span className="text-indigo-400">inventory.</span>{" "}
-              </h1>{" "}
-              <p className="mt-6 max-w-xl text-lg leading-8 text-slate-400">
-                {" "}
-                Manage products, monitor stock levels, track inventory value,
-                and keep your business organized from one powerful
-                platform.{" "}
-              </p>{" "}
-              <div className="mt-8 flex flex-wrap gap-4">
-                {" "}
-                <Link
-                  to="/register"
-                  className="rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-white transition hover:bg-indigo-400"
-                >
-                  {" "}
-                  Get Started →{" "}
-                </Link>{" "}
-                <Link
-                  to="/login"
-                  className="rounded-lg border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/5"
-                >
-                  {" "}
-                  Sign In{" "}
-                </Link>{" "}
-              </div>{" "}
-              <div className="mt-12 flex flex-wrap gap-10 border-t border-white/10 pt-8">
-                {" "}
-                <div>
-                  {" "}
-                  <p className="text-2xl font-bold">Real-time</p>{" "}
-                  <p className="mt-1 text-sm text-slate-500">
-                    Stock tracking
-                  </p>{" "}
-                </div>{" "}
-                <div>
-                  {" "}
-                  <p className="text-2xl font-bold">Secure</p>{" "}
-                  <p className="mt-1 text-sm text-slate-500">
-                    Authentication
-                  </p>{" "}
-                </div>{" "}
-                <div>
-                  {" "}
-                  <p className="text-2xl font-bold">Cloud</p>{" "}
-                  <p className="mt-1 text-sm text-slate-500">
-                    Ready architecture
-                  </p>{" "}
-                </div>{" "}
-              </div>{" "}
-            </div>{" "}
-            {/* Dashboard Preview */}{" "}
-            <div className="relative">
-              {" "}
-              <div className="absolute -inset-10 rounded-full bg-indigo-500/10 blur-3xl" />{" "}
-              <div className="relative rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl">
-                {" "}
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                  {" "}
-                  <div>
-                    {" "}
-                    <p className="font-semibold">Inventory Overview</p>{" "}
-                    <p className="text-xs text-slate-500">
-                      {" "}
-                      Updated just now{" "}
-                    </p>{" "}
-                  </div>{" "}
-                  <span className="flex items-center gap-2 text-xs text-emerald-400">
-                    {" "}
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />{" "}
-                    Live{" "}
-                  </span>{" "}
-                </div>{" "}
-                <div className="mt-5 grid grid-cols-3 gap-3">
-                  {" "}
-                  <div className="rounded-xl bg-white/5 p-4">
-                    {" "}
-                    <p className="text-xs text-slate-500">Products</p>{" "}
-                    <p className="mt-2 text-2xl font-bold">1,248</p>{" "}
-                  </div>{" "}
-                  <div className="rounded-xl bg-white/5 p-4">
-                    {" "}
-                    <p className="text-xs text-slate-500">Low Stock</p>{" "}
-                    <p className="mt-2 text-2xl font-bold text-amber-400">
-                      {" "}
-                      24{" "}
-                    </p>{" "}
-                  </div>{" "}
-                  <div className="rounded-xl bg-white/5 p-4">
-                    {" "}
-                    <p className="text-xs text-slate-500">Value</p>{" "}
-                    <p className="mt-2 text-2xl font-bold">$48K</p>{" "}
-                  </div>{" "}
-                </div>{" "}
-                <div className="mt-4 rounded-xl bg-white/5 p-5">
-                  {" "}
-                  <div className="flex justify-between">
-                    {" "}
-                    <p className="font-medium">Stock Activity</p>{" "}
-                    <span className="text-xs text-slate-500">
-                      {" "}
-                      Last 7 days{" "}
-                    </span>{" "}
-                  </div>{" "}
-                  <div className="mt-6 flex h-40 items-end justify-between gap-3">
-                    {" "}
-                    {[45, 70, 55, 85, 60, 95, 75].map((height, index) => (
-                      <div
-                        key={index}
-                        className="w-full rounded-t-md bg-indigo-500/70"
-                        style={{ height: `${height}%` }}
-                      />
-                    ))}{" "}
-                  </div>{" "}
-                </div>{" "}
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
-        </section>{" "}
-        {/* Features */}{" "}
-        <section
-          id="features"
-          className="border-y border-white/10 bg-slate-900/50"
-        >
-          {" "}
-          <div className="mx-auto max-w-7xl px-6 py-24">
-            {" "}
-            <div className="max-w-2xl">
-              {" "}
-              <p className="text-sm font-semibold uppercase tracking-widest text-indigo-400">
-                {" "}
-                Features{" "}
-              </p>{" "}
-              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
-                {" "}
-                Everything you need to manage inventory.{" "}
-              </h2>{" "}
-              <p className="mt-4 text-slate-400">
-                {" "}
-                Keep your products organized and your inventory under
-                control.{" "}
-              </p>{" "}
-            </div>{" "}
-            <div className="mt-12 grid gap-6 md:grid-cols-3">
-              {" "}
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-7">
-                {" "}
-                <div className="text-3xl">📦</div>{" "}
-                <h3 className="mt-5 text-xl font-semibold">
-                  {" "}
-                  Product Management{" "}
-                </h3>{" "}
-                <p className="mt-3 leading-7 text-slate-400">
-                  {" "}
-                  Add, edit, delete, search, and organize your products from a
-                  centralized inventory system.{" "}
-                </p>{" "}
-              </div>{" "}
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-7">
-                {" "}
-                <div className="text-3xl">📊</div>{" "}
-                <h3 className="mt-5 text-xl font-semibold"> Stock Tracking </h3>{" "}
-                <p className="mt-3 leading-7 text-slate-400">
-                  {" "}
-                  Monitor quantities and identify low-stock products before they
-                  become a problem.{" "}
-                </p>{" "}
-              </div>{" "}
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-7">
-                {" "}
-                <div className="text-3xl">🔐</div>{" "}
-                <h3 className="mt-5 text-xl font-semibold"> Secure Access </h3>{" "}
-                <p className="mt-3 leading-7 text-slate-400">
-                  {" "}
-                  Firebase Authentication provides secure access to your
-                  inventory management system.{" "}
-                </p>{" "}
-              </div>{" "}
-            </div>{" "}
-          </div>{" "}
-        </section>{" "}
-        {/* CTA */}{" "}
-        <section id="about" className="px-6 py-24">
-          {" "}
-          <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-indigo-500/10 px-6 py-16 text-center">
-            {" "}
-            <h2 className="text-3xl font-bold sm:text-4xl">
-              {" "}
-              Ready to manage your inventory?{" "}
-            </h2>{" "}
-            <p className="mx-auto mt-4 max-w-xl text-slate-400">
-              {" "}
-              Create your account and start organizing your products today.{" "}
-            </p>{" "}
-            <Link
-              to="/register"
-              className="mt-8 inline-block rounded-lg bg-indigo-500 px-7 py-3 font-semibold transition hover:bg-indigo-400"
-            >
-              {" "}
-              Create Your Account →{" "}
-            </Link>{" "}
-          </div>{" "}
-        </section>{" "}
-      </main>{" "}
-      {/* Footer */}{" "}
-      <footer className="border-t border-white/10">
-        {" "}
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
-          {" "}
-          <div className="flex items-center gap-3">
-            {" "}
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 text-sm font-bold">
-              {" "}
-              I{" "}
-            </div>{" "}
-            <span className="font-semibold">InventoryPro</span>{" "}
-          </div>{" "}
-          <p className="text-sm text-slate-500">
-            {" "}
-            © 2026 InventoryPro. All rights reserved.{" "}
-          </p>{" "}
-        </div>{" "}
-      </footer>{" "}
+    <div className="ip-stock-row">
+      <div className="ip-stock-row__inner">
+        <div className="ip-stock-icon" style={{ background: "rgba(255,255,255,0.05)" }}>
+          <span className={`ip-icon ${textClass}`}>{icon}</span>
+        </div>
+        <div className="ip-stock-meta">
+          <span className="ip-stock-name">{name}</span>
+          <span className="ip-stock-sku">{sku}</span>
+        </div>
+        <div className="ip-stock-right">
+          <span className={`ip-qty ${textClass}`}>
+            {qty} <span className="ip-qty-unit">left</span>
+          </span>
+          <span className={`ip-badge ${bgClass} ${textClass} ${borderClass}`}>{status}</span>
+        </div>
+      </div>
+      <div className="ip-bar-track">
+        <div className={`ip-bar-fill ${colorClass}`} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
-export default Landing;
+
+/* ─── feature card ─── */
+function FeatureCard({ icon, accent, title, desc }) {
+  return (
+    <div className={`ip-feature-card ip-feature-card--${accent}`}>
+      <div className={`ip-feature-icon ip-feature-icon--${accent}`}>{icon}</div>
+      <h3 className="ip-feature-title">{title}</h3>
+      <p className="ip-feature-desc">{desc}</p>
+    </div>
+  );
+}
+
+export default function Landing() {
+  const items = useCounter(10000, 2000);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  return (
+    <div className="ip-root">
+      {/* ── Fonts ── */}
+      <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+      />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap"
+        rel="stylesheet"
+      />
+
+      {/* ── Header ── */}
+      <header className="ip-header">
+        <div className="ip-header__inner">
+          <Link to="/" className="ip-logo">
+            <div className="ip-logo-mark">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M3 9L12 3L21 9V21H15V15H9V21H3V9Z" fill="currentColor" opacity="0.9" />
+              </svg>
+            </div>
+            <span className="ip-logo-text">InventoryPro</span>
+          </Link>
+
+          <nav className="ip-nav">
+            <a href="#features" className="ip-nav__link">Features</a>
+            <a href="#metrics" className="ip-nav__link">Metrics</a>
+            <a href="#about" className="ip-nav__link">About</a>
+            <Link to="/login" className="ip-nav__link">Login</Link>
+          </nav>
+
+          <Link to="/register" className="ip-btn ip-btn--primary">
+            Get Started
+          </Link>
+
+          {/* Mobile hamburger */}
+          <button
+            className="ip-hamburger"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span /><span /><span />
+          </button>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="ip-mobile-menu">
+            <a href="#features" className="ip-mobile-link" onClick={() => setMobileMenuOpen(false)}>Features</a>
+            <a href="#metrics" className="ip-mobile-link" onClick={() => setMobileMenuOpen(false)}>Metrics</a>
+            <Link to="/login" className="ip-mobile-link" onClick={() => setMobileMenuOpen(false)}>Login</Link>
+            <Link to="/register" className="ip-btn ip-btn--primary ip-btn--block" onClick={() => setMobileMenuOpen(false)}>Get Started</Link>
+          </div>
+        )}
+      </header>
+
+      <main className="ip-main">
+
+        {/* ── Hero ── */}
+        <section className="ip-hero">
+          {/* ambient glow blobs */}
+          <div className="ip-glow ip-glow--teal" />
+          <div className="ip-glow ip-glow--blue" />
+
+          <div className="ip-hero__inner">
+            {/* Left Column */}
+            <div className="ip-hero__copy">
+              <div className="ip-pill">
+                <span className="ip-pill__dot" />
+                <span>Smart Inventory Management · Real-time sync</span>
+              </div>
+
+              <h1 className="ip-headline">
+                Take control of your{" "}
+                <span className="ip-headline--accent">inventory.</span>
+              </h1>
+
+              <p className="ip-subheadline">
+                Manage products, monitor stock levels, track inventory value, and keep
+                your business organized — all from one powerful cloud platform.
+              </p>
+
+              <div className="ip-hero__actions">
+                <Link to="/register" className="ip-btn ip-btn--primary ip-btn--lg">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 3L4 14h7v7l9-11h-7V3z"/>
+                  </svg>
+                  Start Free Trial
+                </Link>
+                <Link to="/login" className="ip-btn ip-btn--ghost ip-btn--lg">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  Sign In
+                </Link>
+              </div>
+
+              <div className="ip-hero__stats">
+                <div className="ip-hero__stat">
+                  <span className="ip-hero__stat-num">Real‑time</span>
+                  <span className="ip-hero__stat-label">Stock tracking</span>
+                </div>
+                <div className="ip-hero__stat-divider" />
+                <div className="ip-hero__stat">
+                  <span className="ip-hero__stat-num">Secure</span>
+                  <span className="ip-hero__stat-label">Authentication</span>
+                </div>
+                <div className="ip-hero__stat-divider" />
+                <div className="ip-hero__stat">
+                  <span className="ip-hero__stat-num">Cloud</span>
+                  <span className="ip-hero__stat-label">Architecture</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column — Live Inventory Card */}
+            <div className="ip-hero__visual">
+              <div className="ip-glass-card">
+                <div className="ip-glass-card__header">
+                  <div className="ip-glass-card__title">
+                    <span className="ip-dot ip-dot--pulse ip-dot--green" />
+                    Live Inventory Overview
+                  </div>
+                  <span className="ip-glass-card__badge">Real‑time sync</span>
+                </div>
+
+                {/* Mini stat row */}
+                <div className="ip-mini-stats">
+                  <div className="ip-mini-stat">
+                    <span className="ip-mini-stat__label">Products</span>
+                    <span className="ip-mini-stat__val">1,248</span>
+                  </div>
+                  <div className="ip-mini-stat">
+                    <span className="ip-mini-stat__label">Low Stock</span>
+                    <span className="ip-mini-stat__val ip-mini-stat__val--warn">24</span>
+                  </div>
+                  <div className="ip-mini-stat">
+                    <span className="ip-mini-stat__label">Value</span>
+                    <span className="ip-mini-stat__val">ETB 48K</span>
+                  </div>
+                </div>
+
+                {/* Stock rows */}
+                <div className="ip-stock-list">
+                  <StockRow
+                    icon="🍃"
+                    name="Organic Matcha Powder"
+                    sku="SKU‑1092 · Central Store"
+                    qty="420"
+                    status="In Stock"
+                    pct={84}
+                    colorClass="ip-bar--green"
+                    bgClass="ip-badge--green-bg"
+                    borderClass="ip-badge--green-border"
+                    textClass="ip-text--green"
+                  />
+                  <StockRow
+                    icon="📡"
+                    name="Smart Wireless Sensor"
+                    sku="SKU‑4819 · Main Warehouse"
+                    qty="14"
+                    status="Low Stock"
+                    pct={18}
+                    colorClass="ip-bar--red"
+                    bgClass="ip-badge--red-bg"
+                    borderClass="ip-badge--red-border"
+                    textClass="ip-text--red"
+                  />
+                  <StockRow
+                    icon="☕"
+                    name="Cold Brew Concentrate"
+                    sku="SKU‑3104 · Transit Fleet"
+                    qty="+500"
+                    status="On Order"
+                    pct={52}
+                    colorClass="ip-bar--cyan"
+                    bgClass="ip-badge--cyan-bg"
+                    borderClass="ip-badge--cyan-border"
+                    textClass="ip-text--cyan"
+                  />
+                </div>
+
+                {/* Sparkline bars */}
+                <div className="ip-sparkline">
+                  <div className="ip-sparkline__header">
+                    <span className="ip-sparkline__title">Stock Activity</span>
+                    <span className="ip-sparkline__sub">Last 7 days</span>
+                  </div>
+                  <div className="ip-sparkline__bars">
+                    {[45, 70, 55, 85, 60, 95, 75].map((h, i) => (
+                      <div
+                        key={i}
+                        className="ip-sparkline__bar"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Metric bar ── */}
+        <section id="metrics" className="ip-metrics">
+          <div className="ip-metrics__inner">
+            <div className="ip-metric">
+              <span className="ip-metric__num">{items.toLocaleString()}+</span>
+              <span className="ip-metric__label">Items Managed</span>
+            </div>
+            <div className="ip-metric-divider" />
+            <div className="ip-metric">
+              <span className="ip-metric__num ip-metric__num--green">99.9%</span>
+              <span className="ip-metric__label">Inventory Accuracy</span>
+            </div>
+            <div className="ip-metric-divider" />
+            <div className="ip-metric">
+              <span className="ip-metric__num ip-metric__num--cyan">Under 5 Min</span>
+              <span className="ip-metric__label">Quick Setup</span>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Features ── */}
+        <section id="features" className="ip-features">
+          <div className="ip-features__inner">
+            <div className="ip-section-header">
+              <p className="ip-section-eyebrow">Features</p>
+              <h2 className="ip-section-title">Everything you need. Nothing you don't.</h2>
+              <p className="ip-section-sub">
+                Designed to save hours every week so you can focus on building your brand.
+              </p>
+            </div>
+
+            <div className="ip-feature-grid">
+              <FeatureCard
+                accent="green"
+                icon={
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/>
+                  </svg>
+                }
+                title="Product Management"
+                desc="Add, edit, delete, search, and organize your products from a centralized inventory system with bulk actions."
+              />
+              <FeatureCard
+                accent="cyan"
+                icon={
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                  </svg>
+                }
+                title="Smart Stock Tracking"
+                desc="Monitor quantities and get automatic low-stock alerts before they become a problem. Never run out unexpectedly."
+              />
+              <FeatureCard
+                accent="green"
+                icon={
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                  </svg>
+                }
+                title="Secure Role-Based Access"
+                desc="Firebase Authentication provides secure, multi-role access. Admins, staff, and viewers — each with the right permissions."
+              />
+              <FeatureCard
+                accent="cyan"
+                icon={
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
+                  </svg>
+                }
+                title="Real-time Cloud Sync"
+                desc="All data synced live across all your devices via Firebase Firestore. No refresh needed — always up to date."
+              />
+              <FeatureCard
+                accent="green"
+                icon={
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/>
+                  </svg>
+                }
+                title="Analytics & Reports"
+                desc="Get a bird's-eye view of stock movements, total inventory value, and product performance — at a glance."
+              />
+              <FeatureCard
+                accent="cyan"
+                icon={
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                }
+                title="Multi-location Support"
+                desc="Track stock across multiple warehouses, stores, and transit fleets — all in one unified dashboard without confusion."
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* ── CTA ── */}
+        <section id="about" className="ip-cta">
+          <div className="ip-cta__card">
+            <div className="ip-cta__glow" />
+            <div className="ip-pill ip-pill--center">
+              <span className="ip-pill__dot ip-pill__dot--green" />
+              <span>Free 14-day trial · No credit card needed</span>
+            </div>
+            <h2 className="ip-cta__title">
+              Ready to manage your inventory the modern way?
+            </h2>
+            <p className="ip-cta__sub">
+              Create your account and start organizing your products today. Join thousands of businesses already using InventoryPro.
+            </p>
+            <div className="ip-cta__actions">
+              <Link to="/register" className="ip-btn ip-btn--primary ip-btn--lg">
+                Create Your Account →
+              </Link>
+              <Link to="/login" className="ip-btn ip-btn--ghost ip-btn--lg">
+                Already have an account?
+              </Link>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      {/* ── Footer ── */}
+      <footer className="ip-footer">
+        <div className="ip-footer__inner">
+          <div className="ip-footer__brand">
+            <div className="ip-logo-mark ip-logo-mark--sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 9L12 3L21 9V21H15V15H9V21H3V9Z" opacity="0.9" />
+              </svg>
+            </div>
+            <span>© 2026 InventoryPro. All rights reserved.</span>
+          </div>
+          <div className="ip-footer__status">
+            <span className="ip-dot ip-dot--green" />
+            <span>Systems Operational</span>
+          </div>
+          <div className="ip-footer__links">
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+            <a href="#">Support</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

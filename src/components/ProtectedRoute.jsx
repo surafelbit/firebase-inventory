@@ -6,7 +6,7 @@ function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#031427", color: "#8aa0b8" }}>
         Loading...
       </div>
     );

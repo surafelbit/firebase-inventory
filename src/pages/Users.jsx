@@ -1,379 +1,308 @@
-
 import { useEffect, useState } from "react";
-import { initializeApp, getApps } from "firebase/app";
-import {
-    getAuth,
-    connectAuthEmulator,
-    createUserWithEmailAndPassword,
-    updateProfile,
-    signOut,
-} from "firebase/auth";
-import Navbar from "../components/Navbar";
-import {
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    serverTimestamp,
-    setDoc,
-} from "firebase/firestore";
-
+import { initializeApp } from "firebase/app";
+import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
+import { AppLayout } from "../components/Navbar";
+import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { firebaseConfig, db } from "../firebase";
 
+const S = {
+  bg:"#031427", surface:"rgba(11,28,48,.7)", border:"rgba(255,255,255,.07)",
+  text:"#d3e4fe", muted:"#8aa0b8", dim:"#5a7a9a",
+  green:"#4edea3", greenDim:"rgba(78,222,163,.1)", greenBorder:"rgba(78,222,163,.2)",
+  input:"rgba(16,32,52,.8)", inputBorder:"rgba(255,255,255,.08)",
+};
+
+const roleMeta = {
+  admin:  { bg:"rgba(168,85,247,.1)",  color:"#c084fc", border:"rgba(168,85,247,.25)" },
+  staff:  { bg:"rgba(78,222,163,.1)",  color:"#4edea3", border:"rgba(78,222,163,.25)" },
+  viewer: { bg:"rgba(76,215,246,.1)",  color:"#4cd7f6", border:"rgba(76,215,246,.25)" },
+};
+
+function FormInput({ label, ...props }) {
+  return (
+    <div>
+      <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:S.muted }}>{label}</label>
+      <input
+        {...props}
+        style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1px solid ${S.inputBorder}`, background:S.input, color:S.text, fontSize:14, outline:"none", transition:"border-color .2s" }}
+        onFocus={e => e.target.style.borderColor = S.green}
+        onBlur={e  => e.target.style.borderColor = S.inputBorder}
+      />
+    </div>
+  );
+}
+
 function Users() {
-    const [users, setUsers] = useState([]);
-    const [showForm, setShowForm] = useState(false);
+  const [users, setUsers]       = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ fullName:"", email:"", password:"", role:"staff" });
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState("");
 
-    const [formData, setFormData] = useState({
-        fullName: "",
-        email: "",
-        password: "",
-        role: "staff",
-    });
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
+      // Primary: Firestore Client SDK
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setUsers(list);
+          setLoading(false);
+          return;
+        }
+      } catch (sdkErr) {
+        console.warn("Firestore SDK getDocs warning, attempting emulator fallback:", sdkErr.message);
+      }
 
-    // Load users
-    const loadUsers = async () => {
+      // Fallback: If local emulator is running, fetch directly from emulator REST API
+      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+      if (isLocal) {
         try {
-            setLoading(true);
-
-            const snapshot = await getDocs(collection(db, "users"));
-
-            const usersList = snapshot.docs.map((userDoc) => ({
-                id: userDoc.id,
-                ...userDoc.data(),
-            }));
-
-            setUsers(usersList);
-        } catch (error) {
-            console.error("Load users error:", error);
-            setError("Unable to load users.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
-    // Create user
-    const handleCreateUser = async (e) => {
-        e.preventDefault();
-
-        setError("");
-
-        if (!formData.fullName || !formData.email || !formData.password) {
-            setError("Please fill in all fields.");
-            return;
-        }
-
-        if (formData.password.length < 6) {
-            setError("Password must be at least 6 characters.");
-            return;
-        }
-
-        try {
-            setSaving(true);
-
-            /*
-             * Create a SECOND Firebase app/auth instance.
-             * This prevents the Admin from being logged out.
-             */
-            const appName = `admin - user - creator - ${Date.now()} `;
-
-            const secondaryApp = initializeApp(firebaseConfig, appName);
-            const secondaryAuth = getAuth(secondaryApp);
-
-            if (window.location.hostname === "localhost") {
-                connectAuthEmulator(
-                    secondaryAuth,
-                    "http://127.0.0.1:9099",
-                    { disableWarnings: true }
-                );
+          const res = await fetch(`http://127.0.0.1:8080/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.documents && json.documents.length > 0) {
+              const list = json.documents.map((doc) => {
+                const id = doc.name.split("/").pop();
+                const fields = doc.fields || {};
+                return {
+                  id,
+                  uid: fields.uid?.stringValue || id,
+                  fullName: fields.fullName?.stringValue || "User",
+                  email: fields.email?.stringValue || "",
+                  role: (fields.role?.stringValue || "viewer").toLowerCase(),
+                };
+              });
+              setUsers(list);
+              setLoading(false);
+              return;
             }
-
-            const userCredential = await createUserWithEmailAndPassword(
-                secondaryAuth,
-                formData.email,
-                formData.password
-            );
-
-            const newUser = userCredential.user;
-
-            await updateProfile(newUser, {
-                displayName: formData.fullName,
-            });
-
-            // Create Firestore user document
-            await setDoc(doc(db, "users", newUser.uid), {
-                uid: newUser.uid,
-                fullName: formData.fullName,
-                email: formData.email,
-                role: formData.role,
-                createdAt: serverTimestamp(),
-            });
-
-            // Sign out the secondary auth instance
-            await signOut(secondaryAuth);
-
-            // Reset form
-            setFormData({
-                fullName: "",
-                email: "",
-                password: "",
-                role: "staff",
-            });
-
-            setShowForm(false);
-
-            await loadUsers();
-        } catch (error) {
-            console.error("Create user error:", error);
-
-            if (error.code === "auth/email-already-in-use") {
-                setError("A user with this email already exists.");
-            } else if (error.code === "auth/invalid-email") {
-                setError("Please enter a valid email address.");
-            } else if (error.code === "auth/weak-password") {
-                setError("Password must be at least 6 characters.");
-            } else {
-                setError(error.message || "Unable to create user.");
-            }
-        } finally {
-            setSaving(false);
+          }
+        } catch (restErr) {
+          console.warn("Emulator REST fallback warning:", restErr.message);
         }
-    };
+      }
 
-    // Delete user
-    const handleDeleteUser = async (userId) => {
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this user?"
-        );
+      setUsers([]);
+    } catch (err) {
+      console.error("loadUsers error:", err);
+      setError("Unable to load users.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        if (!confirmed) return;
+  useEffect(() => { loadUsers(); }, []);
 
-        try {
-            await deleteDoc(doc(db, "users", userId));
-
-            setUsers((previousUsers) =>
-                previousUsers.filter((user) => user.id !== userId)
-            );
-        } catch (error) {
-            console.error("Delete user error:", error);
-            setError("Unable to delete user.");
+  const handleCreateUser = async (e) => {
+    e.preventDefault(); setError("");
+    if (!formData.fullName||!formData.email||!formData.password) { setError("Please fill in all fields."); return; }
+    if (formData.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    try {
+      setSaving(true);
+      const appName = `admin-creator-${Date.now()}`;
+      const secondaryApp  = initializeApp(firebaseConfig, appName);
+      const secondaryAuth = getAuth(secondaryApp);
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        connectAuthEmulator(secondaryAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+      }
+      const { user:newUser } = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+      await updateProfile(newUser, { displayName: formData.fullName });
+      
+      try {
+        await setDoc(doc(db,"users",newUser.uid), { uid:newUser.uid, fullName:formData.fullName, email:formData.email, role:formData.role, createdAt:serverTimestamp() });
+      } catch {
+        // Fallback: direct REST write to emulator
+        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        if (isLocal) {
+          await fetch(`http://127.0.0.1:8080/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${newUser.uid}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fields: {
+                uid: { stringValue: newUser.uid },
+                fullName: { stringValue: formData.fullName },
+                email: { stringValue: formData.email },
+                role: { stringValue: formData.role },
+              }
+            })
+          });
         }
-    };
+      }
 
-    return (
-        <div className="min-h-screen bg-slate-950 text-white">
-            <Navbar />
+      await signOut(secondaryAuth);
+      setFormData({ fullName:"", email:"", password:"", role:"staff" });
+      setShowForm(false);
+      await loadUsers();
+    } catch (err) {
+      if      (err.code === "auth/email-already-in-use") setError("A user with this email already exists.");
+      else if (err.code === "auth/invalid-email")        setError("Please enter a valid email address.");
+      else if (err.code === "auth/weak-password")        setError("Password must be at least 6 characters.");
+      else setError(err.message || "Unable to create user.");
+    } finally { setSaving(false); }
+  };
 
-            <main className="lg:pl-64">
-                <div className="mx-auto max-w-6xl px-6 py-8 lg:px-10">
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      try {
+        await deleteDoc(doc(db,"users",userId));
+      } catch {
+        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        if (isLocal) {
+          await fetch(`http://127.0.0.1:8080/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${userId}`, {
+            method: "DELETE"
+          });
+        }
+      }
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    } catch { setError("Unable to delete user."); }
+  };
 
-                    {/* Header */}
-                    <header className="mb-8 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-indigo-400">Admin</p>
-                            <h1 className="mt-1 text-3xl font-bold">
-                                User Management
-                            </h1>
-                            <p className="mt-2 text-slate-500">
-                                Manage users and their roles.
-                            </p>
-                        </div>
+  return (
+    <AppLayout>
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"32px 24px 64px", color:S.text }}>
 
-                        <button
-                            onClick={() => {
-                                setShowForm(!showForm);
-                                setError("");
-                            }}
-                            className="rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold transition hover:bg-indigo-400"
-                        >
-                            {showForm ? "Cancel" : "+ Create User"}
-                        </button>
-                    </header>
+          {/* Header */}
+          <header style={{ display:"flex", flexWrap:"wrap", justifyContent:"space-between", alignItems:"flex-start", gap:16, marginBottom:32 }}>
+            <div>
+              <p style={{ fontSize:12, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:S.green, marginBottom:6 }}>Admin</p>
+              <h1 style={{ fontSize:30, fontWeight:800, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:6 }}>User Management</h1>
+              <p style={{ fontSize:14, color:S.muted }}>Manage users and their roles.</p>
+            </div>
+            <button
+              onClick={() => { setShowForm(!showForm); setError(""); }}
+              style={{ padding:"11px 20px", borderRadius:12, background: showForm ? "rgba(255,255,255,.06)" : "linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border: showForm ? `1px solid ${S.border}` : "none", cursor:"pointer", boxShadow: showForm ? "none" : "0 0 18px rgba(78,222,163,.25)", transition:"all .2s" }}
+            >
+              {showForm ? "Cancel" : "+ Create User"}
+            </button>
+          </header>
 
-                    {/* Create User Form */}
-                    {showForm && (
-                        <div className="mb-8 rounded-xl border border-white/10 bg-slate-900 p-6">
-                            <h2 className="mb-5 text-xl font-semibold">
-                                Create New User
-                            </h2>
-
-                            {error && (
-                                <div className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                                    {error}
-                                </div>
-                            )}
-
-                            <form
-                                onSubmit={handleCreateUser}
-                                className="grid gap-5 md:grid-cols-2"
-                            >
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-400">
-                                        Full Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.fullName}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                fullName: e.target.value,
-                                            })
-                                        }
-                                        placeholder="Enter full name"
-                                        className="w-full rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-indigo-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-400">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                email: e.target.value,
-                                            })
-                                        }
-                                        placeholder="Enter email"
-                                        className="w-full rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-indigo-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-400">
-                                        Password
-                                    </label>
-                                    <input
-                                        type="password"
-                                        value={formData.password}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                password: e.target.value,
-                                            })
-                                        }
-                                        placeholder="Minimum 6 characters"
-                                        className="w-full rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-indigo-500"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-400">
-                                        Role
-                                    </label>
-                                    <select
-                                        value={formData.role}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                role: e.target.value,
-                                            })
-                                        }
-                                        className="w-full rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none focus:border-indigo-500"
-                                    >
-                                        <option value="admin">Admin</option>
-                                        <option value="staff">Staff</option>
-                                        <option value="viewer">Viewer</option>
-                                    </select>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="rounded-lg bg-indigo-500 px-6 py-3 font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {saving ? "Creating..." : "Create User"}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Users Table */}
-                    <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900">
-                        <div className="border-b border-white/10 px-6 py-5">
-                            <h2 className="font-semibold">All Users</h2>
-                        </div>
-
-                        {loading ? (
-                            <div className="p-8 text-center text-slate-400">
-                                Loading users...
-                            </div>
-                        ) : users.length === 0 ? (
-                            <div className="p-8 text-center text-slate-400">
-                                No users found.
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className="border-b border-white/10 text-left text-xs uppercase text-slate-500">
-                                            <th className="px-6 py-4 font-semibold">Name</th>
-                                            <th className="px-6 py-4 font-semibold">Email</th>
-                                            <th className="px-6 py-4 font-semibold">Role</th>
-                                            <th className="px-6 py-4 text-right font-semibold">Action</th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody className="divide-y divide-white/5">
-                                        {users.map((user) => (
-                                            <tr key={user.id}>
-                                                <td className="px-6 py-4 font-medium">
-                                                    {user.fullName || "Unnamed User"}
-                                                </td>
-
-                                                <td className="px-6 py-4 text-sm text-slate-400">
-                                                    {user.email}
-                                                </td>
-
-                                                <td className="px-6 py-4">
-                                                    <span
-                                                        className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                                                            user.role === "admin"
-                                                                ? "bg-purple-500/10 text-purple-400"
-                                                                : user.role === "staff"
-                                                                    ? "bg-indigo-500/10 text-indigo-400"
-                                                                    : "bg-slate-500/10 text-slate-400"
-                                                        }`}
-                                                    >
-                                                        {user.role}
-                                                    </span>
-                                                </td>
-
-                                                <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDeleteUser(user.id)}
-                                                        className="text-sm font-medium text-red-400 transition hover:text-red-300"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-
+          {/* Create form */}
+          {showForm && (
+            <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:28, marginBottom:24 }}>
+              <h2 style={{ fontSize:17, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:20 }}>Create New User</h2>
+              {error && (
+                <div style={{ marginBottom:16, padding:"12px 16px", borderRadius:10, background:"rgba(255,75,75,.08)", border:"1px solid rgba(255,75,75,.2)", fontSize:13, color:"#fca5a5" }}>{error}</div>
+              )}
+              <form onSubmit={handleCreateUser} style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:16 }}>
+                <FormInput label="Full Name"  type="text"     value={formData.fullName} onChange={e=>setFormData({...formData,fullName:e.target.value})}  placeholder="Enter full name" />
+                <FormInput label="Email"      type="email"    value={formData.email}    onChange={e=>setFormData({...formData,email:e.target.value})}     placeholder="Enter email" />
+                <FormInput label="Password"   type="password" value={formData.password} onChange={e=>setFormData({...formData,password:e.target.value})}  placeholder="Minimum 6 characters" />
+                <div>
+                  <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:S.muted }}>Role</label>
+                  <select
+                    value={formData.role}
+                    onChange={e=>setFormData({...formData,role:e.target.value})}
+                    style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1px solid ${S.inputBorder}`, background:S.input, color:S.text, fontSize:14, outline:"none" }}
+                    onFocus={e=>e.target.style.borderColor=S.green}
+                    onBlur={e=>e.target.style.borderColor=S.inputBorder}
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="staff">Staff</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
                 </div>
-            </main>
-        </div>
-    );
+                <div style={{ gridColumn:"1/-1" }}>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    style={{ padding:"11px 24px", borderRadius:10, background: saving ? "rgba(16,185,129,.4)" : "linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor: saving?"not-allowed":"pointer", boxShadow: saving?"none":"0 0 16px rgba(78,222,163,.2)" }}
+                  >
+                    {saving ? "Creating…" : "Create User"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Error banner outside form */}
+          {error && !showForm && (
+            <div style={{ marginBottom:20, padding:"12px 16px", borderRadius:10, background:"rgba(255,75,75,.08)", border:"1px solid rgba(255,75,75,.2)", fontSize:13, color:"#fca5a5", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>{error}</span>
+              <button onClick={() => setError("")} style={{ background:"none", border:"none", color:"#fca5a5", cursor:"pointer", fontSize:14 }}>✕</button>
+            </div>
+          )}
+
+          {/* Users table */}
+          <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, overflow:"hidden" }}>
+            <div style={{ padding:"18px 24px", borderBottom:`1px solid ${S.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <h2 style={{ fontSize:16, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>All Users</h2>
+                <span style={{ fontSize:12, fontWeight:600, padding:"2px 8px", borderRadius:99, background:"rgba(78,222,163,.12)", color:S.green, border:`1px solid ${S.greenBorder}` }}>
+                  {users.length} {users.length === 1 ? "user" : "users"}
+                </span>
+              </div>
+              <button
+                onClick={loadUsers}
+                disabled={loading}
+                title="Reload users list"
+                style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,.05)", border:`1px solid ${S.border}`, color:S.muted, fontSize:12, fontWeight:500, cursor: loading ? "not-allowed" : "pointer" }}
+              >
+                ↻ Refresh
+              </button>
+            </div>
+
+            {loading ? (
+              <div style={{ padding:48, textAlign:"center", color:S.muted }}>Loading users…</div>
+            ) : users.length === 0 ? (
+              <div style={{ padding:48, textAlign:"center", color:S.muted }}>
+                <p style={{ marginBottom:14 }}>No users found in database.</p>
+                <button
+                  onClick={loadUsers}
+                  style={{ padding:"8px 18px", borderRadius:8, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:13, border:"none", cursor:"pointer" }}
+                >
+                  ↻ Reload Users
+                </button>
+              </div>
+            ) : (
+              <div style={{ overflowX:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead>
+                    <tr style={{ borderBottom:`1px solid ${S.border}` }}>
+                      {["Name","Email","Role","Action"].map((h,i) => (
+                        <th key={h} style={{ padding:"12px 20px", textAlign: i===3?"right":"left", fontSize:11, fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", color:S.dim }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => {
+                      const rm = roleMeta[u.role] || roleMeta.viewer;
+                      return (
+                        <tr key={u.id} style={{ borderBottom:`1px solid rgba(255,255,255,.04)` }}>
+                          <td style={{ padding:"14px 20px", fontWeight:600, fontSize:14 }}>{u.fullName||"Unnamed User"}</td>
+                          <td style={{ padding:"14px 20px", fontSize:13, color:S.muted }}>{u.email}</td>
+                          <td style={{ padding:"14px 20px" }}>
+                            <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:99, fontSize:12, fontWeight:600, background:rm.bg, color:rm.color, border:`1px solid ${rm.border}` }}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td style={{ padding:"14px 20px", textAlign:"right" }}>
+                            <button
+                              onClick={() => handleDeleteUser(u.id)}
+                              style={{ fontSize:13, fontWeight:500, color:"#fca5a5", background:"none", border:"none", cursor:"pointer", transition:"color .2s" }}
+                              onMouseEnter={e=>e.currentTarget.style.color="#f87171"}
+                              onMouseLeave={e=>e.currentTarget.style.color="#fca5a5"}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+      </div>
+    </AppLayout>
+  );
 }
 
 export default Users;
-

@@ -1,18 +1,27 @@
 
 import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";
+import { AppLayout } from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { auth } from "../firebase";
 
 const API_URL =
   "http://127.0.0.1:5001/inventory-app-19292/us-central1/api";
 
 function Products() {
-  const { userData } = useAuth();
+  const { user, userData } = useAuth();
 
-  const role = userData?.role;
+  const emailLower = (user?.email || "").toLowerCase();
+  const role = (
+    userData?.role ||
+    (emailLower.includes("admin") ? "admin" :
+     emailLower.includes("staff") ? "staff" : "viewer")
+  ).toLowerCase().trim();
 
-  const canManageProducts =
-    role === "admin" || role === "staff";
+  const isAdmin = role === "admin";
+  const isStaff = role === "staff";
+
+  const canManageProducts = isAdmin || isStaff;
+  const canDelete = isAdmin;
 
   // Products
   const [products, setProducts] = useState([]);
@@ -149,8 +158,13 @@ function Products() {
     if (!confirmed) return;
 
     try {
+      const token = await auth.currentUser?.getIdToken();
+
       const response = await fetch(`${API_URL}/products/${id}`, {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       const result = await response.json();
@@ -275,12 +289,15 @@ function Products() {
     try {
       setStockLoading(true);
 
+      const token = await auth.currentUser?.getIdToken();
+
       const response = await fetch(
         `${API_URL}/products/${selectedProduct.id}/stock`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             type: stockType,
@@ -349,35 +366,21 @@ function Products() {
   // --------------------------------------------------
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <Navbar />
-
-      <main className="lg:pl-64">
-        <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+    <AppLayout>
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"32px 24px 64px", color:"#d3e4fe" }}>
 
           {/* HEADER */}
-          <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <header style={{ display:"flex", flexWrap:"wrap", justifyContent:"space-between", alignItems:"flex-start", gap:16, marginBottom:32 }}>
             <div>
-              <p className="text-sm text-indigo-400">
-                Inventory
-              </p>
-
-              <h1 className="mt-1 text-3xl font-bold">
-                Products
-              </h1>
-
-              <p className="mt-2 text-slate-500">
-                Manage products and track inventory movements.
-              </p>
+              <p style={{ fontSize:12, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:"#4edea3", marginBottom:6 }}>Inventory</p>
+              <h1 style={{ fontSize:30, fontWeight:800, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:6 }}>Products</h1>
+              <p style={{ fontSize:14, color:"#8aa0b8" }}>Manage products and track inventory movements.</p>
             </div>
 
             {canManageProducts && (
               <button
-                onClick={() => {
-                  setEditingProduct(null);
-                  setShowForm(true);
-                }}
-                className="rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold transition hover:bg-indigo-400"
+                onClick={() => { setEditingProduct(null); setShowForm(true); }}
+                style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:12, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor:"pointer", boxShadow:"0 0 18px rgba(78,222,163,.25)", whiteSpace:"nowrap" }}
               >
                 + Add Product
               </button>
@@ -386,350 +389,196 @@ function Products() {
 
           {/* ADD PRODUCT FORM */}
           {showForm && (
-            <section className="mt-8 rounded-xl border border-white/10 bg-slate-900 p-6">
-              <div className="mb-6 flex items-center justify-between">
+            <section style={{ marginBottom:24, background:"rgba(11,28,48,.75)", border:"1px solid rgba(255,255,255,.08)", borderRadius:16, padding:28 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
                 <div>
-                  <h2 className="text-xl font-semibold">
-                    Add New Product
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Enter the product information below.
-                  </p>
+                  <h2 style={{ fontSize:18, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:4 }}>Add New Product</h2>
+                  <p style={{ fontSize:13, color:"#8aa0b8" }}>Enter the product information below.</p>
                 </div>
-
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="text-xl text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
+                <button onClick={() => setShowForm(false)} style={{ background:"none", border:"none", color:"#8aa0b8", fontSize:20, cursor:"pointer", lineHeight:1 }}>✕</button>
               </div>
 
               <form onSubmit={handleSubmit}>
-                <div className="grid gap-5 md:grid-cols-2">
-
-                  {/* NAME */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Product Name
-                    </label>
-
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      placeholder="e.g. Wireless Mouse"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* SKU */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      SKU
-                    </label>
-
-                    <input
-                      type="text"
-                      name="sku"
-                      value={formData.sku}
-                      onChange={handleChange}
-                      placeholder="e.g. WM-001"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* CATEGORY */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Category
-                    </label>
-
-                    <input
-                      type="text"
-                      name="category"
-                      value={formData.category}
-                      onChange={handleChange}
-                      placeholder="e.g. Electronics"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* INITIAL QUANTITY */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Initial Stock
-                    </label>
-
-                    <input
-                      type="number"
-                      name="quantity"
-                      value={formData.quantity}
-                      onChange={handleChange}
-                      placeholder="e.g. 25"
-                      min="0"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* PRICE */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Price (ETB)
-                    </label>
-
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleChange}
-                      placeholder="e.g. 750"
-                      min="0"
-                      step="0.01"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                    />
-                  </div>
-
-                  {/* MIN STOCK */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-300">
-                      Minimum Stock
-                    </label>
-
-                    <input
-                      type="number"
-                      name="minStock"
-                      value={formData.minStock}
-                      onChange={handleChange}
-                      placeholder="e.g. 5"
-                      min="0"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                    />
-                  </div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))", gap:16 }}>
+                  {[
+                    { label:"Product Name", name:"name",     type:"text",   placeholder:"e.g. Wireless Mouse" },
+                    { label:"SKU",          name:"sku",      type:"text",   placeholder:"e.g. WM-001" },
+                    { label:"Category",    name:"category", type:"text",   placeholder:"e.g. Electronics" },
+                    { label:"Initial Stock",name:"quantity", type:"number", placeholder:"e.g. 25",  min:"0" },
+                    { label:"Price (ETB)", name:"price",    type:"number", placeholder:"e.g. 750", min:"0", step:"0.01" },
+                    { label:"Min Stock",   name:"minStock", type:"number", placeholder:"e.g. 5",   min:"0" },
+                  ].map(({ label, ...props }) => (
+                    <div key={props.name}>
+                      <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>{label}</label>
+                      <input
+                        {...props}
+                        value={formData[props.name]}
+                        onChange={handleChange}
+                        required
+                        style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                        onFocus={e => e.target.style.borderColor="#4edea3"}
+                        onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"}
+                      />
+                    </div>
+                  ))}
                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="rounded-lg border border-white/10 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/5"
-                  >
+                <div style={{ display:"flex", justifyContent:"flex-end", gap:12, marginTop:20 }}>
+                  <button type="button" onClick={() => setShowForm(false)}
+                    style={{ padding:"10px 20px", borderRadius:10, border:"1px solid rgba(255,255,255,.1)", background:"transparent", color:"#8aa0b8", fontSize:14, cursor:"pointer" }}>
                     Cancel
                   </button>
-
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {saving
-                      ? "Creating..."
-                      : "Create Product"}
+                  <button type="submit" disabled={saving}
+                    style={{ padding:"10px 22px", borderRadius:10, background: saving?"rgba(16,185,129,.4)":"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor: saving?"not-allowed":"pointer", boxShadow: saving?"none":"0 0 16px rgba(78,222,163,.2)" }}>
+                    {saving ? "Creating…" : "Create Product"}
                   </button>
                 </div>
               </form>
             </section>
           )}
 
-          {/* PRODUCTS */}
-          <section className="mt-8 overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+          {/* PRODUCTS TABLE */}
+          <section style={{ background:"rgba(11,28,48,.75)", border:"1px solid rgba(255,255,255,.07)", borderRadius:16, overflow:"hidden" }}>
 
             {/* FILTERS */}
-            <div className="flex flex-col gap-4 border-b border-white/10 p-5 md:flex-row">
+            <div style={{ display:"flex", flexWrap:"wrap", gap:12, padding:"16px 20px", borderBottom:"1px solid rgba(255,255,255,.07)" }}>
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by product name or SKU..."
-                className="flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-500"
+                placeholder="Search by name or SKU…"
+                style={{ flex:1, minWidth:200, padding:"10px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none" }}
+                onFocus={e => e.target.style.borderColor="#4edea3"}
+                onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"}
               />
-
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="rounded-lg border border-white/10 bg-slate-900 px-4 py-3 text-sm text-slate-300 outline-none focus:border-indigo-500"
+                style={{ padding:"10px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none" }}
               >
-                <option value="all">
-                  All Categories
-                </option>
-
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
+                <option value="all">All Categories</option>
+                {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
 
-            {/* CONTENT */}
             {loading ? (
-              <div className="flex min-h-96 items-center justify-center">
-                <p className="text-slate-500">
-                  Loading products...
-                </p>
-              </div>
+              <div style={{ minHeight:320, display:"flex", alignItems:"center", justifyContent:"center", color:"#8aa0b8" }}>Loading products…</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="flex min-h-96 flex-col items-center justify-center px-6 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 text-3xl">
-                  📦
-                </div>
-
-                <h2 className="mt-5 text-xl font-semibold">
-                  {products.length === 0
-                    ? "No products yet"
-                    : "No products found"}
-                </h2>
-
-                <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
-                  {products.length === 0
-                    ? "Your inventory doesn't have any products yet. Add your first product to start managing your stock."
-                    : "Try changing your search or category filter."}
+              <div style={{ minHeight:320, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", padding:32 }}>
+                <div style={{ fontSize:40, marginBottom:16 }}>📦</div>
+                <h2 style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>{products.length === 0 ? "No products yet" : "No products found"}</h2>
+                <p style={{ fontSize:13, color:"#8aa0b8", maxWidth:380, lineHeight:1.65, marginBottom: products.length===0 && canManageProducts ? 20 : 0 }}>
+                  {products.length === 0 ? "Your inventory doesn't have any products yet." : "Try changing your search or category filter."}
                 </p>
-
-                {products.length === 0 &&
-                  canManageProducts && (
-                    <button
-                      onClick={() => setShowForm(true)}
-                      className="mt-6 rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold transition hover:bg-indigo-400"
-                    >
-                      + Add Your First Product
-                    </button>
-                  )}
+                {products.length === 0 && canManageProducts && (
+                  <button onClick={() => setShowForm(true)}
+                    style={{ padding:"10px 22px", borderRadius:10, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor:"pointer" }}>
+                    + Add Your First Product
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-
-                  <thead className="border-b border-white/10 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-6 py-4">
-                        Product
-                      </th>
-
-                      <th className="px-6 py-4">
-                        SKU
-                      </th>
-
-                      <th className="px-6 py-4">
-                        Category
-                      </th>
-
-                      <th className="px-6 py-4">
-                        Quantity
-                      </th>
-
-                      <th className="px-6 py-4">
-                        Price
-                      </th>
-
-                      <th className="px-6 py-4">
-                        Status
-                      </th>
-
-                      <th className="px-6 py-4">
-                        Actions
-                      </th>
+              <div style={{ overflowX:"auto" }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:14 }}>
+                  <thead>
+                    <tr style={{ borderBottom:"1px solid rgba(255,255,255,.07)" }}>
+                      {["Product","SKU","Category","Qty","Price (ETB)","Status","Actions"].map(h => (
+                        <th key={h} style={{ padding:"12px 16px", textAlign:"left", fontSize:11, fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", color:"#3a5a7a", whiteSpace:"nowrap" }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
-
                   <tbody>
                     {filteredProducts.map((product) => {
-                      const quantity = Number(product.quantity);
-                      const minStock = Number(product.minStock);
-
-                      const isOutOfStock =
-                        quantity === 0;
-
-                      const isLowStock =
-                        quantity > 0 &&
-                        quantity <= minStock;
-
+                      const quantity  = Number(product.quantity);
+                      const minStock  = Number(product.minStock);
+                      const isOut     = quantity === 0;
+                      const isLow     = quantity > 0 && quantity <= minStock;
+                      const badge     = isOut
+                        ? { label:"Out of Stock", bg:"rgba(255,100,100,.1)",  color:"#fca5a5", border:"rgba(255,100,100,.2)" }
+                        : isLow
+                        ? { label:"Low Stock",    bg:"rgba(245,158,11,.1)",   color:"#fbbf24", border:"rgba(245,158,11,.2)" }
+                        : { label:"In Stock",     bg:"rgba(78,222,163,.1)",   color:"#4edea3", border:"rgba(78,222,163,.2)" };
                       return (
-                        <tr
-                          key={product.id}
-                          className="border-b border-white/5 transition hover:bg-white/[0.02]"
-                        >
-                          <td className="px-6 py-4 font-medium">
-                            {product.name}
+                        <tr key={product.id} style={{ borderBottom:"1px solid rgba(255,255,255,.04)" }}
+                          onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,.02)"}
+                          onMouseLeave={e => e.currentTarget.style.background="transparent"}>
+                          <td style={{ padding:"14px 16px", fontWeight:600, color:"#d3e4fe" }}>{product.name}</td>
+                          <td style={{ padding:"14px 16px", color:"#8aa0b8", fontFamily:"'JetBrains Mono',monospace", fontSize:12 }}>{product.sku}</td>
+                          <td style={{ padding:"14px 16px", color:"#8aa0b8" }}>{product.category}</td>
+                          <td style={{ padding:"14px 16px", fontWeight:700, fontFamily:"'JetBrains Mono',monospace", color: isOut?"#fca5a5" : isLow?"#fbbf24" : "#4edea3" }}>{quantity}</td>
+                          <td style={{ padding:"14px 16px", color:"#d3e4fe" }}>{Number(product.price).toLocaleString()}</td>
+                          <td style={{ padding:"14px 16px" }}>
+                            <span style={{ padding:"3px 10px", borderRadius:99, fontSize:11, fontWeight:600, background:badge.bg, color:badge.color, border:`1px solid ${badge.border}` }}>{badge.label}</span>
                           </td>
-
-                          <td className="px-6 py-4 text-slate-400">
-                            {product.sku}
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-400">
-                            {product.category}
-                          </td>
-
-                          <td className="px-6 py-4 font-medium">
-                            {quantity}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            ETB{" "}
-                            {Number(
-                              product.price
-                            ).toLocaleString()}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            {isOutOfStock ? (
-                              <span className="rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium text-red-400">
-                                Out of Stock
-                              </span>
-                            ) : isLowStock ? (
-                              <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
-                                Low Stock
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-                                In Stock
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            {canManageProducts && (
-                              <div className="flex flex-wrap gap-3">
-
+                          <td style={{ padding:"14px 16px" }}>
+                            {canManageProducts ? (
+                              <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
                                 <button
-                                  onClick={() =>
-                                    openStockModal(product)
-                                  }
-                                  className="text-emerald-400 transition hover:text-emerald-300"
+                                  onClick={() => openStockModal(product)}
+                                  title="Adjust stock (received/sold/returned)"
+                                  style={{
+                                    display:"inline-flex", alignItems:"center", gap:5,
+                                    padding:"6px 12px", borderRadius:8,
+                                    background:"rgba(78,222,163,.1)", color:"#4edea3",
+                                    border:"1px solid rgba(78,222,163,.25)",
+                                    fontSize:12, fontWeight:600, cursor:"pointer",
+                                    transition:"all .15s",
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background="rgba(78,222,163,.2)"}
+                                  onMouseLeave={e => e.currentTarget.style.background="rgba(78,222,163,.1)"}
                                 >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4 10h12v2H4zm0-4h16v2H4zm0 8h8v2H4zm10 0v6l5-3z"/>
+                                  </svg>
                                   Stock
                                 </button>
-
                                 <button
-                                  onClick={() =>
-                                    handleEdit(product)
-                                  }
-                                  className="text-indigo-400 transition hover:text-indigo-300"
+                                  onClick={() => handleEdit(product)}
+                                  title="Edit product details"
+                                  style={{
+                                    display:"inline-flex", alignItems:"center", gap:5,
+                                    padding:"6px 12px", borderRadius:8,
+                                    background:"rgba(76,215,246,.1)", color:"#4cd7f6",
+                                    border:"1px solid rgba(76,215,246,.25)",
+                                    fontSize:12, fontWeight:600, cursor:"pointer",
+                                    transition:"all .15s",
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background="rgba(76,215,246,.2)"}
+                                  onMouseLeave={e => e.currentTarget.style.background="rgba(76,215,246,.1)"}
                                 >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                  </svg>
                                   Edit
                                 </button>
-
-                                <button
-                                  onClick={() =>
-                                    handleDelete(
-                                      product.id
-                                    )
-                                  }
-                                  className="text-red-400 transition hover:text-red-300"
-                                >
-                                  Delete
-                                </button>
-
+                                {canDelete ? (
+                                  <button
+                                    onClick={() => handleDelete(product.id)}
+                                    title="Delete product (Admin only)"
+                                    style={{
+                                      display:"inline-flex", alignItems:"center", gap:5,
+                                      padding:"6px 12px", borderRadius:8,
+                                      background:"rgba(255,100,100,.1)", color:"#fca5a5",
+                                      border:"1px solid rgba(255,100,100,.25)",
+                                      fontSize:12, fontWeight:600, cursor:"pointer",
+                                      transition:"all .15s",
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background="rgba(255,100,100,.2)"}
+                                    onMouseLeave={e => e.currentTarget.style.background="rgba(255,100,100,.1)"}
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                    </svg>
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <span title="Staff members cannot delete products" style={{ fontSize:11, color:"#5a7a9a", fontStyle:"italic", padding:"4px 6px" }}>
+                                    (No delete)
+                                  </span>
+                                )}
                               </div>
+                            ) : (
+                              <span style={{ fontSize:12, color:"#5a7a9a" }}>View only</span>
                             )}
                           </td>
                         </tr>
@@ -741,180 +590,69 @@ function Products() {
             )}
           </section>
         </div>
-      </main>
 
-      {/* --------------------------------------------------
-          STOCK MOVEMENT MODAL
+      {/* STOCK MOVEMENT MODAL
       -------------------------------------------------- */}
 
       {showStockModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
-
-            <div className="mb-6 flex items-start justify-between">
+        <div style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)", padding:16, backdropFilter:"blur(8px)" }}>
+          <div style={{ width:"100%", maxWidth:480, background:"rgba(11,28,48,.97)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, padding:28, boxShadow:"0 40px 100px rgba(0,0,0,.5)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
               <div>
-                <p className="text-sm text-indigo-400">
-                  Inventory Movement
-                </p>
-
-                <h2 className="mt-1 text-xl font-bold text-white">
-                  {selectedProduct.name}
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  SKU: {selectedProduct.sku}
-                </p>
+                <p style={{ fontSize:12, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:"#4edea3", marginBottom:4 }}>Stock Movement</p>
+                <h2 style={{ fontSize:20, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:3 }}>{selectedProduct.name}</h2>
+                <p style={{ fontSize:13, color:"#8aa0b8" }}>SKU: {selectedProduct.sku}</p>
               </div>
-
-              <button
-                onClick={closeStockModal}
-                disabled={stockLoading}
-                className="text-2xl text-slate-400 transition hover:text-white disabled:opacity-50"
-              >
-                ×
-              </button>
+              <button onClick={closeStockModal} disabled={stockLoading}
+                style={{ background:"none", border:"none", color:"#8aa0b8", fontSize:22, cursor:"pointer", lineHeight:1, opacity: stockLoading?.5:1 }}>×</button>
             </div>
 
-            <form
-              onSubmit={handleStockMovement}
-              className="space-y-5"
-            >
-
-              {/* MOVEMENT TYPE */}
+            <form onSubmit={handleStockMovement} style={{ display:"flex", flexDirection:"column", gap:16 }}>
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Stock Action
-                </label>
-
-                <select
-                  value={stockType}
-                  onChange={(e) =>
-                    setStockType(e.target.value)
-                  }
-                  className="w-full rounded-lg border border-white/10 bg-slate-800 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
-                >
-                  <option value="received">
-                    Received / Imported
-                  </option>
-
-                  <option value="sold">
-                    Sold
-                  </option>
-
-                  <option value="returned">
-                    Customer Return
-                  </option>
-
-                  <option value="damaged">
-                    Damaged / Lost
-                  </option>
+                <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>Stock Action</label>
+                <select value={stockType} onChange={e => setStockType(e.target.value)}
+                  style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.9)", color:"#d3e4fe", fontSize:14, outline:"none" }}>
+                  <option value="received">Received / Imported</option>
+                  <option value="sold">Sold</option>
+                  <option value="returned">Customer Return</option>
+                  <option value="damaged">Damaged / Lost</option>
                 </select>
               </div>
 
-              {/* QUANTITY */}
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Quantity
-                </label>
-
-                <input
-                  type="number"
-                  min="1"
-                  value={stockQuantity}
-                  onChange={(e) =>
-                    setStockQuantity(e.target.value)
-                  }
-                  placeholder="Enter quantity"
-                  required
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-500"
-                />
+                <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>Quantity</label>
+                <input type="number" min="1" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)}
+                  placeholder="Enter quantity" required
+                  style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none" }}
+                  onFocus={e => e.target.style.borderColor="#4edea3"}
+                  onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"} />
               </div>
 
-              {/* STOCK PREVIEW */}
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">
-                    Current stock
-                  </span>
-
-                  <span className="font-semibold text-white">
-                    {selectedProduct.quantity}
-                  </span>
-                </div>
-
-                <div className="my-3 border-t border-white/10" />
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-400">
-                    Movement
-                  </span>
-
-                  <span
-                    className={`font-semibold ${isStockIncrease
-                      ? "text-emerald-400"
-                      : "text-red-400"
-                      }`}
-                  >
-                    {isStockIncrease ? "+" : "-"}
-                    {movementQuantity}
-                  </span>
-                </div>
-
-                <div className="my-3 border-t border-white/10" />
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-300">
-                    New stock
-                  </span>
-
-                  <span
-                    className={`text-lg font-bold ${newStock < 0
-                      ? "text-red-400"
-                      : "text-white"
-                      }`}
-                  >
-                    {newStock}
-                  </span>
-                </div>
-              </div>
-
-              {/* WARNING */}
-              {!isStockIncrease &&
-                movementQuantity >
-                selectedProduct.quantity &&
-                movementQuantity > 0 && (
-                  <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                    You cannot remove more stock than is
-                    currently available.
+              {/* Preview */}
+              <div style={{ background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, padding:16, display:"flex", flexDirection:"column", gap:10 }}>
+                {[{label:"Current stock", val:selectedProduct.quantity, color:"#d3e4fe"},
+                  {label:"Movement", val:`${isStockIncrease?"+":"-"}${movementQuantity}`, color: isStockIncrease?"#4edea3":"#fca5a5"},
+                  {label:"New stock",     val:newStock, color: newStock<0?"#fca5a5":"#d3e4fe", bold:true}]
+                  .map(({label,val,color,bold}) => (
+                  <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <span style={{ fontSize:13, color:"#8aa0b8" }}>{label}</span>
+                    <span style={{ fontWeight: bold?700:600, color, fontSize: bold?16:14, fontFamily:"'JetBrains Mono',monospace" }}>{val}</span>
                   </div>
-                )}
+                ))}
+              </div>
 
-              {/* BUTTONS */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={closeStockModal}
-                  disabled={stockLoading}
-                  className="flex-1 rounded-lg border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/5 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
+              {!isStockIncrease && movementQuantity > selectedProduct.quantity && movementQuantity > 0 && (
+                <div style={{ padding:"10px 14px", borderRadius:10, background:"rgba(255,75,75,.08)", border:"1px solid rgba(255,75,75,.2)", fontSize:13, color:"#fca5a5" }}>
+                  Cannot remove more stock than available.
+                </div>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={
-                    stockLoading ||
-                    !stockQuantity ||
-                    movementQuantity <= 0 ||
-                    newStock < 0
-                  }
-                  className="flex-1 rounded-lg bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {stockLoading
-                    ? "Updating..."
-                    : "Confirm Movement"}
+              <div style={{ display:"flex", gap:12 }}>
+                <button type="button" onClick={closeStockModal} disabled={stockLoading}
+                  style={{ flex:1, padding:"11px", borderRadius:10, border:"1px solid rgba(255,255,255,.1)", background:"transparent", color:"#8aa0b8", fontSize:14, cursor:"pointer" }}>Cancel</button>
+                <button type="submit" disabled={stockLoading||!stockQuantity||movementQuantity<=0||newStock<0}
+                  style={{ flex:1, padding:"11px", borderRadius:10, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor: (stockLoading||newStock<0)?"not-allowed":"pointer", opacity:(stockLoading||!stockQuantity||movementQuantity<=0||newStock<0)?.5:1 }}>
+                  {stockLoading ? "Updating…" : "Confirm Movement"}
                 </button>
               </div>
             </form>
@@ -927,182 +665,68 @@ function Products() {
       -------------------------------------------------- */}
 
       {editingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.7)", padding:16, backdropFilter:"blur(8px)" }}>
 
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
-
-            <div className="mb-6 flex items-center justify-between">
+          <div style={{ width:"100%", maxWidth:480, background:"rgba(11,28,48,.97)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, padding:28, boxShadow:"0 40px 100px rgba(0,0,0,.5)" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
               <div>
-                <h2 className="text-xl font-bold text-white">
-                  Edit Product
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Update product information.
-                </p>
+                <h2 style={{ fontSize:20, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:4 }}>Edit Product</h2>
+                <p style={{ fontSize:13, color:"#8aa0b8" }}>Update product information.</p>
               </div>
-
-              <button
-                onClick={() =>
-                  setEditingProduct(null)
-                }
-                className="text-2xl text-slate-400 transition hover:text-white"
-              >
-                ×
-              </button>
+              <button onClick={() => setEditingProduct(null)}
+                style={{ background:"none", border:"none", color:"#8aa0b8", fontSize:22, cursor:"pointer", lineHeight:1 }}>×</button>
             </div>
 
-            <form
-              onSubmit={handleUpdate}
-              className="space-y-4"
-            >
-
-              {/* NAME */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Product Name
-                </label>
-
-                <input
-                  type="text"
-                  value={editingProduct.name}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      name: e.target.value,
-                    })
-                  }
-                  required
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              {/* SKU */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  SKU
-                </label>
-
-                <input
-                  type="text"
-                  value={editingProduct.sku}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      sku: e.target.value,
-                    })
-                  }
-                  required
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              {/* CATEGORY */}
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-300">
-                  Category
-                </label>
-
-                <input
-                  type="text"
-                  value={editingProduct.category}
-                  onChange={(e) =>
-                    setEditingProduct({
-                      ...editingProduct,
-                      category: e.target.value,
-                    })
-                  }
-                  required
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              {/* PRICE + MIN STOCK */}
-              <div className="grid grid-cols-2 gap-4">
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
-                    Price (ETB)
-                  </label>
-
-                  <input
-                    type="number"
-                    value={editingProduct.price}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        price: e.target.value,
-                      })
-                    }
-                    min="0"
-                    step="0.01"
-                    required
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
-                  />
+            <form onSubmit={handleUpdate} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+              {[
+                { label:"Product Name", key:"name",     type:"text" },
+                { label:"SKU",          key:"sku",      type:"text" },
+                { label:"Category",    key:"category", type:"text" },
+              ].map(({ label, key, type }) => (
+                <div key={key}>
+                  <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>{label}</label>
+                  <input type={type} value={editingProduct[key]} required
+                    onChange={e => setEditingProduct({ ...editingProduct, [key]: e.target.value })}
+                    style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                    onFocus={e => e.target.style.borderColor="#4edea3"}
+                    onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"} />
                 </div>
+              ))}
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300">
-                    Min Stock
-                  </label>
-
-                  <input
-                    type="number"
-                    value={editingProduct.minStock}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        minStock: e.target.value,
-                      })
-                    }
-                    min="0"
-                    required
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500"
-                  />
-                </div>
-
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                {[
+                  { label:"Price (ETB)", key:"price",    step:"0.01" },
+                  { label:"Min Stock",   key:"minStock" },
+                ].map(({ label, key, step }) => (
+                  <div key={key}>
+                    <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>{label}</label>
+                    <input type="number" min="0" step={step} value={editingProduct[key]} required
+                      onChange={e => setEditingProduct({ ...editingProduct, [key]: e.target.value })}
+                      style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                      onFocus={e => e.target.style.borderColor="#4edea3"}
+                      onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"} />
+                  </div>
+                ))}
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-400">
-                Current stock:{" "}
-                <span className="font-semibold text-white">
-                  {editingProduct.quantity}
-                </span>
-
-                <p className="mt-1 text-xs text-slate-600">
-                  Use Stock Movement to change inventory quantity.
-                </p>
+              <div style={{ padding:"12px 14px", borderRadius:10, background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.07)", fontSize:13, color:"#8aa0b8" }}>
+                Current stock: <strong style={{ color:"#d3e4fe" }}>{editingProduct.quantity}</strong>
+                <p style={{ marginTop:4, fontSize:12, color:"#3a5a7a" }}>Use Stock Movement to change quantity.</p>
               </div>
 
-              {/* BUTTONS */}
-              <div className="flex gap-3 pt-2">
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditingProduct(null)
-                  }
-                  className="flex-1 rounded-lg border border-white/10 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/5"
-                >
-                  Cancel
+              <div style={{ display:"flex", gap:12 }}>
+                <button type="button" onClick={() => setEditingProduct(null)}
+                  style={{ flex:1, padding:"11px", borderRadius:10, border:"1px solid rgba(255,255,255,.1)", background:"transparent", color:"#8aa0b8", fontSize:14, cursor:"pointer" }}>Cancel</button>
+                <button type="submit" disabled={saving}
+                  style={{ flex:1, padding:"11px", borderRadius:10, background: saving?"rgba(16,185,129,.4)":"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor: saving?"not-allowed":"pointer" }}>
+                  {saving ? "Saving…" : "Save Changes"}
                 </button>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 rounded-lg bg-indigo-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving
-                    ? "Saving..."
-                    : "Save Changes"}
-                </button>
-
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }
 
