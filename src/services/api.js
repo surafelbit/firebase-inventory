@@ -94,6 +94,7 @@ export const api = {
   delete: (endpoint, options = {}) =>
     apiRequest(endpoint, { ...options, method: "DELETE" }),
   downloadCSV: downloadInventoryCSV,
+  checkAlerts: checkLowStockAlerts,
 };
 
 /**
@@ -143,6 +144,47 @@ export async function downloadInventoryCSV() {
   a.click();
   document.body.removeChild(a);
   window.URL.revokeObjectURL(downloadUrl);
+}
+
+/**
+ * Calls the standalone checkLowStockAlerts Cloud Function microservice.
+ * Scans products for low/out-of-stock items, logs an audit alert, and returns a detailed breakdown.
+ */
+export async function checkLowStockAlerts() {
+  if (!auth.currentUser && typeof auth.authStateReady === "function") {
+    try {
+      await auth.authStateReady();
+    } catch {
+      // ignored
+    }
+  }
+
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
+  const baseUrl = API_URL.replace(/\/api\/?$/, "");
+  const alertUrl = `${baseUrl}/checkLowStockAlerts`;
+
+  const headers = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(alertUrl, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    let errorMsg = `Alert scan failed with status ${response.status}`;
+    try {
+      const errData = await response.json();
+      if (errData?.message) errorMsg = errData.message;
+    } catch {
+      // ignored
+    }
+    throw new Error(errorMsg);
+  }
+
+  return await response.json();
 }
 
 export default api;

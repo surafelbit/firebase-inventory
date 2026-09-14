@@ -42,6 +42,8 @@ function StockBar({ label, count, pct, color }) {
 function Dashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [alertData, setAlertData] = useState(null);
+  const [scanning, setScanning]   = useState(false);
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -52,6 +54,19 @@ function Dashboard() {
     };
     fetch_();
   }, []);
+
+  const handleScanAlerts = async () => {
+    try {
+      setScanning(true);
+      const res = await api.checkAlerts();
+      setAlertData(res);
+    } catch (err) {
+      console.error("Alert scan error:", err);
+      alert(err.message || "Failed to scan stock alerts.");
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const totalProducts   = products.length;
   const totalStock      = products.reduce((t,p) => t + Number(p.quantity||0), 0);
@@ -84,15 +99,58 @@ function Dashboard() {
               <h1 style={{ fontSize:30, fontWeight:800, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:6 }}>Dashboard</h1>
               <p style={{ fontSize:14, color:S.muted }}>Here's what's happening with your inventory.</p>
             </div>
-            <Link
-              to="/products"
-              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:12, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, boxShadow:"0 0 18px rgba(78,222,163,.25)", transition:"all .2s", whiteSpace:"nowrap" }}
-              onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 0 28px rgba(78,222,163,.4)"; e.currentTarget.style.transform="translateY(-1px)"; }}
-              onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 0 18px rgba(78,222,163,.25)"; e.currentTarget.style.transform="none"; }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-              Add Product
-            </Link>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <button
+                onClick={handleScanAlerts}
+                disabled={scanning}
+                title="Trigger the standalone Low-Stock Alert Microservice"
+                style={{
+                  display:"inline-flex",
+                  alignItems:"center",
+                  gap:8,
+                  padding:"11px 18px",
+                  borderRadius:12,
+                  background:"rgba(245,158,11,.12)",
+                  border:"1px solid rgba(245,158,11,.3)",
+                  color:"#f59e0b",
+                  fontWeight:600,
+                  fontSize:14,
+                  cursor: scanning ? "not-allowed" : "pointer",
+                  whiteSpace:"nowrap",
+                  transition:"all .2s ease",
+                  opacity: scanning ? 0.7 : 1,
+                  boxShadow:"0 2px 8px rgba(0,0,0,.2)",
+                }}
+                onMouseEnter={e => {
+                  if (!scanning) {
+                    e.currentTarget.style.background = "rgba(245,158,11,.2)";
+                    e.currentTarget.style.borderColor = "#f59e0b";
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!scanning) {
+                    e.currentTarget.style.background = "rgba(245,158,11,.12)";
+                    e.currentTarget.style.borderColor = "rgba(245,158,11,.3)";
+                  }
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                {scanning ? "Scanning Alerts..." : "⚡ Run Stock Alert Scan"}
+              </button>
+
+              <Link
+                to="/products"
+                style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:12, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, boxShadow:"0 0 18px rgba(78,222,163,.25)", transition:"all .2s", whiteSpace:"nowrap" }}
+                onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 0 28px rgba(78,222,163,.4)"; e.currentTarget.style.transform="translateY(-1px)"; }}
+                onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 0 18px rgba(78,222,163,.25)"; e.currentTarget.style.transform="none"; }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                Add Product
+              </Link>
+            </div>
           </header>
 
           {loading ? (
@@ -175,6 +233,107 @@ function Dashboard() {
                 </div>
               </section>
             </>
+          )}
+
+          {/* Low Stock Alert Microservice Modal */}
+          {alertData && (
+            <div style={{ position:"fixed", inset:0, background:"rgba(3,20,39,.8)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:20 }}>
+              <div style={{ background:"#0b1c30", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, maxWidth:680, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 20px 50px rgba(0,0,0,.6)" }}>
+                {/* Modal Header */}
+                <div style={{ padding:"20px 24px", borderBottom:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:"rgba(245,158,11,.15)", border:"1px solid rgba(245,158,11,.3)", display:"flex", alignItems:"center", justifyContent:"center", color:"#f59e0b" }}>
+                      ⚡
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize:18, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", margin:0 }}>Low-Stock Alert Report</h2>
+                      <p style={{ fontSize:12, color:S.muted, margin:"2px 0 0" }}>Generated by standalone alert microservice</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setAlertData(null)} style={{ background:"none", border:"none", color:S.muted, fontSize:20, cursor:"pointer" }}>✕</button>
+                </div>
+
+                {/* Modal Body */}
+                <div style={{ padding:24, overflowY:"auto", display:"flex", flexDirection:"column", gap:20 }}>
+                  {/* Summary Metric Pills */}
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
+                    <div style={{ background:"rgba(248,113,113,.1)", border:"1px solid rgba(248,113,113,.25)", borderRadius:12, padding:"12px 16px" }}>
+                      <p style={{ fontSize:11, textTransform:"uppercase", color:"#fca5a5", fontWeight:600, margin:0 }}>Out of Stock</p>
+                      <p style={{ fontSize:22, fontWeight:800, color:"#f87171", margin:"4px 0 0" }}>{alertData.summary?.outOfStockCount || 0}</p>
+                    </div>
+                    <div style={{ background:"rgba(245,158,11,.1)", border:"1px solid rgba(245,158,11,.25)", borderRadius:12, padding:"12px 16px" }}>
+                      <p style={{ fontSize:11, textTransform:"uppercase", color:"#fcd34d", fontWeight:600, margin:0 }}>Low Stock</p>
+                      <p style={{ fontSize:22, fontWeight:800, color:"#f59e0b", margin:"4px 0 0" }}>{alertData.summary?.lowStockCount || 0}</p>
+                    </div>
+                    <div style={{ background:"rgba(76,215,246,.1)", border:"1px solid rgba(76,215,246,.25)", borderRadius:12, padding:"12px 16px" }}>
+                      <p style={{ fontSize:11, textTransform:"uppercase", color:"#bae6fd", fontWeight:600, margin:0 }}>Est. Restock Cost</p>
+                      <p style={{ fontSize:18, fontWeight:800, color:"#4cd7f6", margin:"4px 0 0" }}>{Number(alertData.summary?.estimatedRestockCost || 0).toLocaleString()} ETB</p>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div>
+                    <h3 style={{ fontSize:14, fontWeight:600, marginBottom:12, color:S.text }}>Items Needing Restock ({alertData.alerts?.length || 0})</h3>
+                    {alertData.alerts?.length === 0 ? (
+                      <p style={{ color:S.green, fontSize:13 }}>No low stock alerts! All inventory levels are healthy.</p>
+                    ) : (
+                      <div style={{ background:"rgba(16,32,52,.6)", border:"1px solid rgba(255,255,255,.06)", borderRadius:12, overflow:"hidden" }}>
+                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+                          <thead>
+                            <tr style={{ borderBottom:"1px solid rgba(255,255,255,.06)", color:S.dim }}>
+                              <th style={{ padding:"10px 14px", textAlign:"left" }}>Product</th>
+                              <th style={{ padding:"10px 14px", textAlign:"center" }}>Current / Min</th>
+                              <th style={{ padding:"10px 14px", textAlign:"center" }}>Reorder Suggestion</th>
+                              <th style={{ padding:"10px 14px", textAlign:"right" }}>Est. Cost</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {alertData.alerts?.map((item) => (
+                              <tr key={item.productId} style={{ borderBottom:"1px solid rgba(255,255,255,.04)" }}>
+                                <td style={{ padding:"12px 14px" }}>
+                                  <div style={{ fontWeight:600, color:S.text }}>{item.name}</div>
+                                  <div style={{ fontSize:11, color:S.muted }}>{item.sku}</div>
+                                </td>
+                                <td style={{ padding:"12px 14px", textAlign:"center" }}>
+                                  <span style={{ fontWeight:700, color: item.status === "OUT_OF_STOCK" ? "#f87171" : "#f59e0b" }}>
+                                    {item.currentStock}
+                                  </span>
+                                  <span style={{ color:S.dim, margin:"0 4px" }}>/</span>
+                                  <span style={{ color:S.muted }}>{item.minStock}</span>
+                                </td>
+                                <td style={{ padding:"12px 14px", textAlign:"center", color:"#4edea3", fontWeight:600 }}>
+                                  +{item.suggestedReorder} units
+                                </td>
+                                <td style={{ padding:"12px 14px", textAlign:"right", color:S.muted }}>
+                                  {Number(item.estimatedCost).toLocaleString()} ETB
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Audit Footer Notice */}
+                  {alertData.auditLogId && (
+                    <div style={{ fontSize:11, color:S.dim, borderTop:"1px solid rgba(255,255,255,.06)", paddingTop:12 }}>
+                      Audit log recorded in Firestore: <code style={{ color:S.muted }}>inventoryAlerts/{alertData.auditLogId}</code>
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div style={{ padding:"16px 24px", borderTop:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"flex-end" }}>
+                  <button
+                    onClick={() => setAlertData(null)}
+                    style={{ padding:"9px 20px", borderRadius:10, background:"rgba(255,255,255,.08)", color:S.text, border:"1px solid rgba(255,255,255,.1)", cursor:"pointer", fontWeight:600, fontSize:13 }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
       </div>
     </AppLayout>

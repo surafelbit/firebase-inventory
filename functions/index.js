@@ -23,6 +23,7 @@ if (isLocalEmulator) {
 const productRoutes = require("./routes/productRoutes");
 const userRoutes = require("./routes/userRoutes");
 const { exportInventoryCSVHandler } = require("./services/exportService");
+const { checkLowStockAlertsHandler } = require("./services/alertService");
 
 const app = express();
 
@@ -52,4 +53,8 @@ exports.api = onRequest(app);
 
 // 2. Standalone Cloud Function: Inventory CSV Export Microservice
 exports.exportInventoryCSV = onRequest({ cors: true }, exportInventoryCSVHandler);
+
+// 3. Standalone Cloud Function: Low Stock Alert Scanner Microservice
+exports.checkLowStockAlerts = onRequest({ cors: true }, checkLowStockAlertsHandler);
+
 
