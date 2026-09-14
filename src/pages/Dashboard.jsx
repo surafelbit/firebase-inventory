@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppLayout } from "../components/Navbar";
-
-const API_URL = "http://127.0.0.1:5001/inventory-app-19292/us-central1/api";
+import { api } from "../services/api";
 
 const S = {
   bg:"#031427", surface:"rgba(11,28,48,.7)", border:"rgba(255,255,255,.07)",
@@ -47,9 +46,7 @@ function Dashboard() {
   useEffect(() => {
     const fetch_ = async () => {
       try {
-        const res  = await fetch(`${API_URL}/products`);
-        if (!res.ok) throw new Error();
-        const data = await res.json();
+        const data = await api.get("/products");
         setProducts(data.data || []);
       } catch { /* silent */ } finally { setLoading(false); }
     };

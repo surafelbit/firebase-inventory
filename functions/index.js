@@ -22,6 +22,7 @@ if (isLocalEmulator) {
 
 const productRoutes = require("./routes/productRoutes");
 const userRoutes = require("./routes/userRoutes");
+const { exportInventoryCSVHandler } = require("./services/exportService");
 
 const app = express();
 
@@ -46,5 +47,9 @@ app.get("/health", (req, res) => {
 app.use("/products", productRoutes);
 app.use("/users", userRoutes);
 
+// 1. Primary REST API (Monolithic Express Cloud Function)
 exports.api = onRequest(app);
+
+// 2. Standalone Cloud Function: Inventory CSV Export Microservice
+exports.exportInventoryCSV = onRequest({ cors: true }, exportInventoryCSVHandler);
 

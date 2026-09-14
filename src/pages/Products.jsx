@@ -2,10 +2,7 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
-import { auth } from "../firebase";
-
-const API_URL =
-  "http://127.0.0.1:5001/inventory-app-19292/us-central1/api";
+import { api } from "../services/api";
 
 function Products() {
   const { user, userData } = useAuth();
@@ -54,6 +51,21 @@ function Products() {
   const [stockQuantity, setStockQuantity] = useState("");
   const [stockLoading, setStockLoading] = useState(false);
 
+  // Export CSV
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      await api.downloadCSV();
+    } catch (error) {
+      console.error("Export error:", error);
+      alert(error.message || "Failed to export inventory CSV.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // --------------------------------------------------
   // FETCH PRODUCTS
   // --------------------------------------------------
@@ -62,13 +74,7 @@ function Products() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/products`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-
-      const result = await response.json();
+      const result = await api.get("/products");
 
       if (result.success) {
         setProducts(result.data);
@@ -103,28 +109,14 @@ function Products() {
     try {
       setSaving(true);
 
-      const response = await fetch(`${API_URL}/products`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          sku: formData.sku,
-          category: formData.category,
-          quantity: Number(formData.quantity),
-          price: Number(formData.price),
-          minStock: Number(formData.minStock),
-        }),
+      await api.post("/products", {
+        name: formData.name,
+        sku: formData.sku,
+        category: formData.category,
+        quantity: Number(formData.quantity),
+        price: Number(formData.price),
+        minStock: Number(formData.minStock),
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Failed to create product"
-        );
-      }
 
       setFormData({
         name: "",
@@ -158,22 +150,7 @@ function Products() {
     if (!confirmed) return;
 
     try {
-      const token = await auth.currentUser?.getIdToken();
-
-      const response = await fetch(`${API_URL}/products/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Failed to delete product"
-        );
-      }
+      await api.delete(`/products/${id}`);
 
       setProducts((previousProducts) =>
         previousProducts.filter((product) => product.id !== id)
@@ -200,30 +177,13 @@ function Products() {
     try {
       setSaving(true);
 
-      const response = await fetch(
-        `${API_URL}/products/${editingProduct.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: editingProduct.name,
-            sku: editingProduct.sku,
-            category: editingProduct.category,
-            price: Number(editingProduct.price),
-            minStock: Number(editingProduct.minStock),
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Failed to update product"
-        );
-      }
+      await api.put(`/products/${editingProduct.id}`, {
+        name: editingProduct.name,
+        sku: editingProduct.sku,
+        category: editingProduct.category,
+        price: Number(editingProduct.price),
+        minStock: Number(editingProduct.minStock),
+      });
 
       setEditingProduct(null);
 
@@ -289,30 +249,13 @@ function Products() {
     try {
       setStockLoading(true);
 
-      const token = await auth.currentUser?.getIdToken();
-
-      const response = await fetch(
-        `${API_URL}/products/${selectedProduct.id}/stock`,
+      const result = await api.post(
+        `/products/${selectedProduct.id}/stock`,
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            type: stockType,
-            quantity: movementQuantity,
-          }),
+          type: stockType,
+          quantity: movementQuantity,
         }
       );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Failed to update stock"
-        );
-      }
 
       // Update the product immediately in the UI
       setProducts((previousProducts) =>
@@ -377,14 +320,58 @@ function Products() {
               <p style={{ fontSize:14, color:"#8aa0b8" }}>Manage products and track inventory movements.</p>
             </div>
 
-            {canManageProducts && (
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <button
-                onClick={() => { setEditingProduct(null); setShowForm(true); }}
-                style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:12, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor:"pointer", boxShadow:"0 0 18px rgba(78,222,163,.25)", whiteSpace:"nowrap" }}
+                onClick={handleExportCSV}
+                disabled={exporting}
+                title="Download all inventory data as CSV report"
+                style={{
+                  display:"inline-flex",
+                  alignItems:"center",
+                  gap:8,
+                  padding:"11px 18px",
+                  borderRadius:12,
+                  background:"rgba(11,28,48,.8)",
+                  border:"1px solid rgba(78,222,163,.35)",
+                  color:"#4edea3",
+                  fontWeight:600,
+                  fontSize:14,
+                  cursor: exporting ? "not-allowed" : "pointer",
+                  whiteSpace:"nowrap",
+                  transition:"all .2s ease",
+                  opacity: exporting ? 0.7 : 1,
+                  boxShadow:"0 2px 8px rgba(0,0,0,.2)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!exporting) {
+                    e.currentTarget.style.background = "rgba(78,222,163,.12)";
+                    e.currentTarget.style.borderColor = "#4edea3";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!exporting) {
+                    e.currentTarget.style.background = "rgba(11,28,48,.8)";
+                    e.currentTarget.style.borderColor = "rgba(78,222,163,.35)";
+                  }
+                }}
               >
-                + Add Product
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {exporting ? "Exporting..." : "Export CSV"}
               </button>
-            )}
+
+              {canManageProducts && (
+                <button
+                  onClick={() => { setEditingProduct(null); setShowForm(true); }}
+                  style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:12, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor:"pointer", boxShadow:"0 0 18px rgba(78,222,163,.25)", whiteSpace:"nowrap" }}
+                >
+                  + Add Product
+                </button>
+              )}
+            </div>
           </header>
 
           {/* ADD PRODUCT FORM */}

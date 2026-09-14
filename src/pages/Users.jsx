@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { initializeApp } from "firebase/app";
-import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
 import { AppLayout } from "../components/Navbar";
-import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseConfig, db } from "../firebase";
+import { api } from "../services/api";
 
 const S = {
   bg:"#031427", surface:"rgba(11,28,48,.7)", border:"rgba(255,255,255,.07)",
@@ -44,53 +41,11 @@ function Users() {
     try {
       setLoading(true);
       setError("");
-
-      // Primary: Firestore Client SDK
-      try {
-        const snap = await getDocs(collection(db, "users"));
-        if (!snap.empty) {
-          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          setUsers(list);
-          setLoading(false);
-          return;
-        }
-      } catch (sdkErr) {
-        console.warn("Firestore SDK getDocs warning, attempting emulator fallback:", sdkErr.message);
-      }
-
-      // Fallback: If local emulator is running, fetch directly from emulator REST API
-      const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      if (isLocal) {
-        try {
-          const res = await fetch(`http://127.0.0.1:8080/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users`);
-          if (res.ok) {
-            const json = await res.json();
-            if (json.documents && json.documents.length > 0) {
-              const list = json.documents.map((doc) => {
-                const id = doc.name.split("/").pop();
-                const fields = doc.fields || {};
-                return {
-                  id,
-                  uid: fields.uid?.stringValue || id,
-                  fullName: fields.fullName?.stringValue || "User",
-                  email: fields.email?.stringValue || "",
-                  role: (fields.role?.stringValue || "viewer").toLowerCase(),
-                };
-              });
-              setUsers(list);
-              setLoading(false);
-              return;
-            }
-          }
-        } catch (restErr) {
-          console.warn("Emulator REST fallback warning:", restErr.message);
-        }
-      }
-
-      setUsers([]);
+      const res = await api.get("/users");
+      setUsers(res.data || []);
     } catch (err) {
       console.error("loadUsers error:", err);
-      setError("Unable to load users.");
+      setError(err.message || "Unable to load users.");
     } finally {
       setLoading(false);
     }
@@ -99,68 +54,37 @@ function Users() {
   useEffect(() => { loadUsers(); }, []);
 
   const handleCreateUser = async (e) => {
-    e.preventDefault(); setError("");
-    if (!formData.fullName||!formData.email||!formData.password) { setError("Please fill in all fields."); return; }
-    if (formData.password.length < 6) { setError("Password must be at least 6 characters."); return; }
+    e.preventDefault();
+    setError("");
+    if (!formData.fullName || !formData.email || !formData.password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
     try {
       setSaving(true);
-      const appName = `admin-creator-${Date.now()}`;
-      const secondaryApp  = initializeApp(firebaseConfig, appName);
-      const secondaryAuth = getAuth(secondaryApp);
-      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-        connectAuthEmulator(secondaryAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-      }
-      const { user:newUser } = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
-      await updateProfile(newUser, { displayName: formData.fullName });
-      
-      try {
-        await setDoc(doc(db,"users",newUser.uid), { uid:newUser.uid, fullName:formData.fullName, email:formData.email, role:formData.role, createdAt:serverTimestamp() });
-      } catch {
-        // Fallback: direct REST write to emulator
-        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-        if (isLocal) {
-          await fetch(`http://127.0.0.1:8080/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${newUser.uid}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fields: {
-                uid: { stringValue: newUser.uid },
-                fullName: { stringValue: formData.fullName },
-                email: { stringValue: formData.email },
-                role: { stringValue: formData.role },
-              }
-            })
-          });
-        }
-      }
-
-      await signOut(secondaryAuth);
-      setFormData({ fullName:"", email:"", password:"", role:"staff" });
+      await api.post("/users", formData);
+      setFormData({ fullName: "", email: "", password: "", role: "staff" });
       setShowForm(false);
       await loadUsers();
     } catch (err) {
-      if      (err.code === "auth/email-already-in-use") setError("A user with this email already exists.");
-      else if (err.code === "auth/invalid-email")        setError("Please enter a valid email address.");
-      else if (err.code === "auth/weak-password")        setError("Password must be at least 6 characters.");
-      else setError(err.message || "Unable to create user.");
-    } finally { setSaving(false); }
+      setError(err.message || "Unable to create user.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      try {
-        await deleteDoc(doc(db,"users",userId));
-      } catch {
-        const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-        if (isLocal) {
-          await fetch(`http://127.0.0.1:8080/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/users/${userId}`, {
-            method: "DELETE"
-          });
-        }
-      }
+      await api.delete(`/users/${userId}`);
       setUsers(prev => prev.filter(u => u.id !== userId));
-    } catch { setError("Unable to delete user."); }
+    } catch (err) {
+      setError(err.message || "Unable to delete user.");
+    }
   };
 
   return (
