@@ -8,18 +8,20 @@ const isLocalEmulator = !process.env.K_SERVICE;
 
 if (isLocalEmulator) {
   process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
-  console.log("[init] Using local Firestore emulator at 127.0.0.1:8080");
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+  console.log("[init] Using local Firestore emulator at 127.0.0.1:8080 and Auth emulator at 127.0.0.1:9099");
 }
 
 admin.initializeApp({ projectId: "inventory-app-19292" });
 
 // Belt-and-suspenders: explicitly configure the Firestore singleton
-// BEFORE productRoutes is required (productService.js calls admin.firestore() on load)
+// BEFORE routes are required (services call admin.firestore() on load)
 if (isLocalEmulator) {
   admin.firestore().settings({ host: "127.0.0.1:8080", ssl: false });
 }
 
 const productRoutes = require("./routes/productRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
@@ -42,6 +44,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/products", productRoutes);
+app.use("/users", userRoutes);
 
 exports.api = onRequest(app);
 
