@@ -14,8 +14,6 @@ if (isLocalEmulator) {
 
 admin.initializeApp({ projectId: "inventory-app-19292" });
 
-// Belt-and-suspenders: explicitly configure the Firestore singleton
-// BEFORE routes are required (services call admin.firestore() on load)
 if (isLocalEmulator) {
   admin.firestore().settings({ host: "127.0.0.1:8080", ssl: false });
 }
