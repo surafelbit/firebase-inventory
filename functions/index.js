@@ -22,6 +22,7 @@ const productRoutes = require("./routes/productRoutes");
 const userRoutes = require("./routes/userRoutes");
 const { exportInventoryCSVHandler } = require("./services/exportService");
 const { checkLowStockAlertsHandler } = require("./services/alertService");
+const { recordStockMovementHandler } = require("./services/stockMovementService");
 
 const app = express();
 
@@ -54,5 +55,8 @@ exports.exportInventoryCSV = onRequest({ cors: true }, exportInventoryCSVHandler
 
 // 3. Standalone Cloud Function: Low Stock Alert Scanner Microservice
 exports.checkLowStockAlerts = onRequest({ cors: true }, checkLowStockAlertsHandler);
+
+// 4. Standalone Cloud Function: Stock Movement & Audit Ledger Microservice
+exports.recordStockMovement = onRequest({ cors: true }, recordStockMovementHandler);
 
 

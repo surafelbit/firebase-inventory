@@ -95,6 +95,8 @@ export const api = {
     apiRequest(endpoint, { ...options, method: "DELETE" }),
   downloadCSV: downloadInventoryCSV,
   checkAlerts: checkLowStockAlerts,
+  recordStockMovement: recordStockMovement,
+  getStockMovements: getStockMovements,
 };
 
 /**
@@ -187,4 +189,109 @@ export async function checkLowStockAlerts() {
   return await response.json();
 }
 
+/**
+ * Calls the standalone recordStockMovement Cloud Function microservice to record an atomic inventory movement.
+ *
+ * @param {Object} movementData - { productId, type, quantity, targetQuantity, reason, referenceNumber }
+ * @returns {Promise<any>}
+ */
+export async function recordStockMovement(movementData) {
+  if (!auth.currentUser && typeof auth.authStateReady === "function") {
+    try {
+      await auth.authStateReady();
+    } catch {
+      // ignored
+    }
+  }
+
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
+  const baseUrl = API_URL.replace(/\/api\/?$/, "");
+  const movementUrl = `${baseUrl}/recordStockMovement`;
+
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(movementUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(movementData),
+  });
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    // ignored
+  }
+
+  if (!response.ok) {
+    const errorMsg = data?.message || `Stock movement failed with status ${response.status}`;
+    const error = new Error(errorMsg);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * Retrieves the Stock Movement & Audit Ledger history from the standalone microservice.
+ *
+ * @param {Object} params - { productId, type, limit }
+ * @returns {Promise<{ success: boolean, summary: Object, data: Array }>}
+ */
+export async function getStockMovements(params = {}) {
+  if (!auth.currentUser && typeof auth.authStateReady === "function") {
+    try {
+      await auth.authStateReady();
+    } catch {
+      // ignored
+    }
+  }
+
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : "";
+  const baseUrl = API_URL.replace(/\/api\/?$/, "");
+
+  const queryParts = [];
+  if (params.productId) queryParts.push(`productId=${encodeURIComponent(params.productId)}`);
+  if (params.type) queryParts.push(`type=${encodeURIComponent(params.type)}`);
+  if (params.limit) queryParts.push(`limit=${encodeURIComponent(params.limit)}`);
+
+  const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+  const movementUrl = `${baseUrl}/recordStockMovement${queryString}`;
+
+  const headers = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(movementUrl, {
+    method: "GET",
+    headers,
+  });
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    // ignored
+  }
+
+  if (!response.ok) {
+    const errorMsg = data?.message || `Failed to fetch stock movements: ${response.status}`;
+    const error = new Error(errorMsg);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
 export default api;
+
