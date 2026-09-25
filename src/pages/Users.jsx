@@ -2,40 +2,19 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "../components/Navbar";
 import { api } from "../services/api";
 
-const S = {
-  bg:"#031427", surface:"rgba(11,28,48,.7)", border:"rgba(255,255,255,.07)",
-  text:"#d3e4fe", muted:"#8aa0b8", dim:"#5a7a9a",
-  green:"#4edea3", greenDim:"rgba(78,222,163,.1)", greenBorder:"rgba(78,222,163,.2)",
-  input:"rgba(16,32,52,.8)", inputBorder:"rgba(255,255,255,.08)",
-};
-
 const roleMeta = {
-  admin:  { bg:"rgba(168,85,247,.1)",  color:"#c084fc", border:"rgba(168,85,247,.25)" },
-  staff:  { bg:"rgba(78,222,163,.1)",  color:"#4edea3", border:"rgba(78,222,163,.25)" },
-  viewer: { bg:"rgba(76,215,246,.1)",  color:"#4cd7f6", border:"rgba(76,215,246,.25)" },
+  admin:  { bg: "rgba(168,85,247,0.14)",  color: "#c084fc", border: "rgba(168,85,247,0.3)" },
+  staff:  { bg: "rgba(16,185,129,0.14)",  color: "#34d399", border: "rgba(16,185,129,0.3)" },
+  viewer: { bg: "rgba(6,182,212,0.14)",   color: "#38bdf8", border: "rgba(6,182,212,0.3)" },
 };
-
-function FormInput({ label, ...props }) {
-  return (
-    <div>
-      <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:S.muted }}>{label}</label>
-      <input
-        {...props}
-        style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1px solid ${S.inputBorder}`, background:S.input, color:S.text, fontSize:14, outline:"none", transition:"border-color .2s" }}
-        onFocus={e => e.target.style.borderColor = S.green}
-        onBlur={e  => e.target.style.borderColor = S.inputBorder}
-      />
-    </div>
-  );
-}
 
 function Users() {
-  const [users, setUsers]       = useState([]);
+  const [users, setUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ fullName:"", email:"", password:"", role:"staff" });
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
+  const [formData, setFormData] = useState({ fullName: "", email: "", password: "", role: "staff" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const loadUsers = async () => {
     try {
@@ -45,23 +24,25 @@ function Users() {
       setUsers(res.data || []);
     } catch (err) {
       console.error("loadUsers error:", err);
-      setError(err.message || "Unable to load users.");
+      setError(err.message || "Unable to load operators.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setError("");
     if (!formData.fullName || !formData.email || !formData.password) {
-      setError("Please fill in all fields.");
+      setError("Please fill in all required credentials.");
       return;
     }
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError("Password must contain at least 6 characters.");
       return;
     }
     try {
@@ -71,158 +52,468 @@ function Users() {
       setShowForm(false);
       await loadUsers();
     } catch (err) {
-      setError(err.message || "Unable to create user.");
+      setError(err.message || "Unable to register operator.");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    if (!window.confirm("Are you sure you want to revoke and delete this operator account?")) return;
     try {
       await api.delete(`/users/${userId}`);
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
     } catch (err) {
-      setError(err.message || "Unable to delete user.");
+      setError(err.message || "Unable to revoke operator.");
     }
   };
 
+  const adminCount = users.filter((u) => u.role === "admin").length;
+  const staffCount = users.filter((u) => u.role === "staff").length;
+  const viewerCount = users.filter((u) => u.role === "viewer").length;
+
   return (
     <AppLayout>
-      <div style={{ maxWidth:1100, margin:"0 auto", padding:"32px 24px 64px", color:S.text }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 64px" }}>
 
-          {/* Header */}
-          <header style={{ display:"flex", flexWrap:"wrap", justifyContent:"space-between", alignItems:"flex-start", gap:16, marginBottom:32 }}>
-            <div>
-              <p style={{ fontSize:12, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:S.green, marginBottom:6 }}>Admin</p>
-              <h1 style={{ fontSize:30, fontWeight:800, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:6 }}>User Management</h1>
-              <p style={{ fontSize:14, color:S.muted }}>Manage users and their roles.</p>
+        {/* Command Center IAM Header */}
+        <header style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 20,
+          marginBottom: 28,
+          paddingBottom: 20,
+          borderBottom: "1px solid rgba(255,255,255,0.07)"
+        }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span className="cc-dot-live" />
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "#c084fc",
+                fontFamily: "'JetBrains Mono', monospace"
+              }}>
+                IAM & Security Governance
+              </span>
             </div>
-            <button
-              onClick={() => { setShowForm(!showForm); setError(""); }}
-              style={{ padding:"11px 20px", borderRadius:12, background: showForm ? "rgba(255,255,255,.06)" : "linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border: showForm ? `1px solid ${S.border}` : "none", cursor:"pointer", boxShadow: showForm ? "none" : "0 0 18px rgba(78,222,163,.25)", transition:"all .2s" }}
-            >
-              {showForm ? "Cancel" : "+ Create User"}
-            </button>
-          </header>
+            <h1 style={{
+              fontSize: 28,
+              fontWeight: 800,
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              letterSpacing: "-0.03em",
+              color: "#f8fafc",
+              margin: 0
+            }}>
+              Operator & Access Management
+            </h1>
+            <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
+              Configure role-based access control (RBAC), enforce privilege segregation, and provision credentials.
+            </p>
+          </div>
 
-          {/* Create form */}
-          {showForm && (
-            <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:28, marginBottom:24 }}>
-              <h2 style={{ fontSize:17, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:20 }}>Create New User</h2>
-              {error && (
-                <div style={{ marginBottom:16, padding:"12px 16px", borderRadius:10, background:"rgba(255,75,75,.08)", border:"1px solid rgba(255,75,75,.2)", fontSize:13, color:"#fca5a5" }}>{error}</div>
-              )}
-              <form onSubmit={handleCreateUser} style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:16 }}>
-                <FormInput label="Full Name"  type="text"     value={formData.fullName} onChange={e=>setFormData({...formData,fullName:e.target.value})}  placeholder="Enter full name" />
-                <FormInput label="Email"      type="email"    value={formData.email}    onChange={e=>setFormData({...formData,email:e.target.value})}     placeholder="Enter email" />
-                <FormInput label="Password"   type="password" value={formData.password} onChange={e=>setFormData({...formData,password:e.target.value})}  placeholder="Minimum 6 characters" />
-                <div>
-                  <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:S.muted }}>Role</label>
-                  <select
-                    value={formData.role}
-                    onChange={e=>setFormData({...formData,role:e.target.value})}
-                    style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:`1px solid ${S.inputBorder}`, background:S.input, color:S.text, fontSize:14, outline:"none" }}
-                    onFocus={e=>e.target.style.borderColor=S.green}
-                    onBlur={e=>e.target.style.borderColor=S.inputBorder}
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="staff">Staff</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                </div>
-                <div style={{ gridColumn:"1/-1" }}>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    style={{ padding:"11px 24px", borderRadius:10, background: saving ? "rgba(16,185,129,.4)" : "linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, border:"none", cursor: saving?"not-allowed":"pointer", boxShadow: saving?"none":"0 0 16px rgba(78,222,163,.2)" }}
-                  >
-                    {saving ? "Creating…" : "Create User"}
-                  </button>
-                </div>
-              </form>
+          <button
+            onClick={() => {
+              setShowForm(!showForm);
+              setError("");
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 20px",
+              borderRadius: 12,
+              background: showForm ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+              color: "#fff",
+              fontWeight: 600,
+              fontSize: 13,
+              border: showForm ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(255,255,255,0.2)",
+              boxShadow: showForm ? "none" : "0 0 18px rgba(16,185,129,0.35)",
+              cursor: "pointer",
+              transition: "all .18s ease"
+            }}
+          >
+            {showForm ? "Cancel Provisioning" : "+ Provision Operator"}
+          </button>
+        </header>
+
+        {/* Telemetry Stat Cards */}
+        <section style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 14,
+          marginBottom: 24
+        }}>
+          <div className="cc-card" style={{ padding: "16px 20px" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'JetBrains Mono', monospace" }}>Total Operators</span>
+            <p style={{ fontSize: 24, fontWeight: 800, color: "#f8fafc", fontFamily: "'JetBrains Mono', monospace", margin: "4px 0 0" }}>{users.length}</p>
+          </div>
+          <div className="cc-card cc-card--accent-cyan" style={{ padding: "16px 20px" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#c084fc", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'JetBrains Mono', monospace" }}>Admin Privilege</span>
+            <p style={{ fontSize: 24, fontWeight: 800, color: "#c084fc", fontFamily: "'JetBrains Mono', monospace", margin: "4px 0 0" }}>{adminCount}</p>
+          </div>
+          <div className="cc-card cc-card--accent-emerald" style={{ padding: "16px 20px" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#34d399", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'JetBrains Mono', monospace" }}>Warehouse Staff</span>
+            <p style={{ fontSize: 24, fontWeight: 800, color: "#34d399", fontFamily: "'JetBrains Mono', monospace", margin: "4px 0 0" }}>{staffCount}</p>
+          </div>
+          <div className="cc-card" style={{ padding: "16px 20px" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'JetBrains Mono', monospace" }}>Auditor / Viewers</span>
+            <p style={{ fontSize: 24, fontWeight: 800, color: "#38bdf8", fontFamily: "'JetBrains Mono', monospace", margin: "4px 0 0" }}>{viewerCount}</p>
+          </div>
+        </section>
+
+        {/* PROVISION OPERATOR PANEL */}
+        {showForm && (
+          <div
+            className="cc-card cc-card--accent-emerald"
+            style={{
+              padding: "26px",
+              marginBottom: 24,
+              animation: "cc-modal-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
+            }}
+          >
+            <div style={{ marginBottom: 18 }}>
+              <span className="cc-badge cc-badge--emerald" style={{ marginBottom: 6 }}>
+                IAM CREDENTIAL ENROLLMENT
+              </span>
+              <h2 style={{ fontSize: 18, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", margin: 0, color: "#f8fafc" }}>
+                Provision New System Operator
+              </h2>
             </div>
-          )}
 
-          {/* Error banner outside form */}
-          {error && !showForm && (
-            <div style={{ marginBottom:20, padding:"12px 16px", borderRadius:10, background:"rgba(255,75,75,.08)", border:"1px solid rgba(255,75,75,.2)", fontSize:13, color:"#fca5a5", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span>{error}</span>
-              <button onClick={() => setError("")} style={{ background:"none", border:"none", color:"#fca5a5", cursor:"pointer", fontSize:14 }}>✕</button>
-            </div>
-          )}
-
-          {/* Users table */}
-          <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, overflow:"hidden" }}>
-            <div style={{ padding:"18px 24px", borderBottom:`1px solid ${S.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <h2 style={{ fontSize:16, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>All Users</h2>
-                <span style={{ fontSize:12, fontWeight:600, padding:"2px 8px", borderRadius:99, background:"rgba(78,222,163,.12)", color:S.green, border:`1px solid ${S.greenBorder}` }}>
-                  {users.length} {users.length === 1 ? "user" : "users"}
-                </span>
-              </div>
-              <button
-                onClick={loadUsers}
-                disabled={loading}
-                title="Reload users list"
-                style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,.05)", border:`1px solid ${S.border}`, color:S.muted, fontSize:12, fontWeight:500, cursor: loading ? "not-allowed" : "pointer" }}
-              >
-                ↻ Refresh
-              </button>
-            </div>
-
-            {loading ? (
-              <div style={{ padding:48, textAlign:"center", color:S.muted }}>Loading users…</div>
-            ) : users.length === 0 ? (
-              <div style={{ padding:48, textAlign:"center", color:S.muted }}>
-                <p style={{ marginBottom:14 }}>No users found in database.</p>
-                <button
-                  onClick={loadUsers}
-                  style={{ padding:"8px 18px", borderRadius:8, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:13, border:"none", cursor:"pointer" }}
-                >
-                  ↻ Reload Users
-                </button>
-              </div>
-            ) : (
-              <div style={{ overflowX:"auto" }}>
-                <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                  <thead>
-                    <tr style={{ borderBottom:`1px solid ${S.border}` }}>
-                      {["Name","Email","Role","Action"].map((h,i) => (
-                        <th key={h} style={{ padding:"12px 20px", textAlign: i===3?"right":"left", fontSize:11, fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", color:S.dim }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map(u => {
-                      const rm = roleMeta[u.role] || roleMeta.viewer;
-                      return (
-                        <tr key={u.id} style={{ borderBottom:`1px solid rgba(255,255,255,.04)` }}>
-                          <td style={{ padding:"14px 20px", fontWeight:600, fontSize:14 }}>{u.fullName||"Unnamed User"}</td>
-                          <td style={{ padding:"14px 20px", fontSize:13, color:S.muted }}>{u.email}</td>
-                          <td style={{ padding:"14px 20px" }}>
-                            <span style={{ display:"inline-block", padding:"3px 10px", borderRadius:99, fontSize:12, fontWeight:600, background:rm.bg, color:rm.color, border:`1px solid ${rm.border}` }}>
-                              {u.role}
-                            </span>
-                          </td>
-                          <td style={{ padding:"14px 20px", textAlign:"right" }}>
-                            <button
-                              onClick={() => handleDeleteUser(u.id)}
-                              style={{ fontSize:13, fontWeight:500, color:"#fca5a5", background:"none", border:"none", cursor:"pointer", transition:"color .2s" }}
-                              onMouseEnter={e=>e.currentTarget.style.color="#f87171"}
-                              onMouseLeave={e=>e.currentTarget.style.color="#fca5a5"}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            {error && (
+              <div style={{
+                marginBottom: 16,
+                padding: "10px 14px",
+                borderRadius: 8,
+                background: "rgba(244,63,94,0.1)",
+                border: "1px solid rgba(244,63,94,0.3)",
+                fontSize: 12,
+                color: "#fb7185"
+              }}>
+                {error}
               </div>
             )}
+
+            <form onSubmit={handleCreateUser} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                  Full Operator Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  placeholder="e.g. Elena Rostova"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(6, 19, 37, 0.8)",
+                    color: "#f8fafc",
+                    fontSize: 13,
+                    outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#10b981")}
+                  onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="operator@inventorypro.local"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(6, 19, 37, 0.8)",
+                    color: "#f8fafc",
+                    fontSize: 13,
+                    outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#10b981")}
+                  onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                  Initial Password
+                </label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Min. 6 alphanumeric chars"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(6, 19, 37, 0.8)",
+                    color: "#f8fafc",
+                    fontSize: 13,
+                    outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "#10b981")}
+                  onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace" }}>
+                  Role Assignment
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(6, 19, 37, 0.8)",
+                    color: "#f8fafc",
+                    fontSize: 13,
+                    outline: "none",
+                    boxSizing: "border-box"
+                  }}
+                >
+                  <option value="staff">Staff (Manage Catalog & Record Movements)</option>
+                  <option value="admin">Admin (Full System Privilege & IAM)</option>
+                  <option value="viewer">Viewer (Read-only Audit Access)</option>
+                </select>
+              </div>
+
+              <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  style={{
+                    padding: "9px 18px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "transparent",
+                    color: "#94a3b8",
+                    fontSize: 13,
+                    cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    padding: "9px 22px",
+                    borderRadius: 10,
+                    background: saving ? "rgba(16,185,129,0.4)" : "linear-gradient(135deg, #10b981, #059669)",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    border: "none",
+                    cursor: saving ? "not-allowed" : "pointer",
+                    boxShadow: "0 0 16px rgba(16,185,129,0.3)"
+                  }}
+                >
+                  {saving ? "Provisioning..." : "Confirm & Save Credentials"}
+                </button>
+              </div>
+            </form>
           </div>
+        )}
+
+        {/* Global Error Banner */}
+        {error && !showForm && (
+          <div style={{
+            marginBottom: 20,
+            padding: "12px 16px",
+            borderRadius: 10,
+            background: "rgba(244,63,94,0.08)",
+            border: "1px solid rgba(244,63,94,0.3)",
+            fontSize: 13,
+            color: "#fb7185",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
+            <span>{error}</span>
+            <button
+              onClick={() => setError("")}
+              style={{ background: "none", border: "none", color: "#fb7185", cursor: "pointer", fontSize: 14 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* OPERATORS DATA TABLE */}
+        <section className="cc-card" style={{ overflow: "hidden" }}>
+          <div style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid rgba(255,255,255,0.07)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: "rgba(255,255,255,0.01)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="cc-dot-live" />
+              <h2 style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", margin: 0, color: "#f8fafc" }}>
+                Enrolled Operators ({users.length})
+              </h2>
+            </div>
+            <button
+              onClick={loadUsers}
+              disabled={loading}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 12px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "#94a3b8",
+                fontSize: 12,
+                cursor: loading ? "not-allowed" : "pointer"
+              }}
+            >
+              ↻ Refresh Directory
+            </button>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: 48, textAlign: "center", color: "#94a3b8" }}>
+              <div style={{ display: "inline-block", width: 28, height: 28, border: "2px solid rgba(192,132,252,0.3)", borderTopColor: "#c084fc", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              <p style={{ marginTop: 10, fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>Syncing IAM Directory...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div style={{ padding: 48, textAlign: "center", color: "#94a3b8" }}>
+              <p>No operator accounts found in directory.</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.2)" }}>
+                    <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Operator</th>
+                    <th style={{ padding: "14px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Email Address</th>
+                    <th style={{ padding: "14px 18px", textAlign: "center", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Assigned Role</th>
+                    <th style={{ padding: "14px 18px", textAlign: "right", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => {
+                    const rm = roleMeta[u.role] || roleMeta.viewer;
+                    const initial = (u.fullName || u.email || "U")[0].toUpperCase();
+
+                    return (
+                      <tr
+                        key={u.id}
+                        style={{
+                          borderBottom: "1px solid rgba(255,255,255,0.04)",
+                          transition: "background .15s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.02)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <td style={{ padding: "14px 18px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: "50%",
+                              background: "rgba(255,255,255,0.05)",
+                              border: `1px solid ${rm.border}`,
+                              color: rm.color,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 13,
+                              fontWeight: 700,
+                              fontFamily: "'JetBrains Mono', monospace"
+                            }}>
+                              {initial}
+                            </div>
+                            <span style={{ fontWeight: 600, color: "#f8fafc" }}>
+                              {u.fullName || "Unnamed Operator"}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td style={{ padding: "14px 18px", color: "#94a3b8", fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
+                          {u.email}
+                        </td>
+
+                        <td style={{ padding: "14px 18px", textAlign: "center" }}>
+                          <span style={{
+                            display: "inline-block",
+                            padding: "3px 10px",
+                            borderRadius: 99,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            background: rm.bg,
+                            color: rm.color,
+                            border: `1px solid ${rm.border}`
+                          }}>
+                            {u.role}
+                          </span>
+                        </td>
+
+                        <td style={{ padding: "14px 18px", textAlign: "right" }}>
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            style={{
+                              padding: "5px 10px",
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "#fb7185",
+                              background: "rgba(244,63,94,0.08)",
+                              border: "1px solid rgba(244,63,94,0.25)",
+                              cursor: "pointer",
+                              transition: "all .18s ease"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "rgba(244,63,94,0.18)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "rgba(244,63,94,0.08)";
+                            }}
+                          >
+                            Revoke
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
       </div>
     </AppLayout>
