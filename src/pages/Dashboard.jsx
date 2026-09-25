@@ -3,37 +3,94 @@ import { Link } from "react-router-dom";
 import { AppLayout } from "../components/Navbar";
 import { api } from "../services/api";
 
-const S = {
-  bg:"#031427", surface:"rgba(11,28,48,.7)", border:"rgba(255,255,255,.07)",
-  text:"#d3e4fe", muted:"#8aa0b8", dim:"#5a7a9a",
-  green:"#4edea3", greenDim:"rgba(78,222,163,.1)", greenBorder:"rgba(78,222,163,.2)",
-  cyan:"#4cd7f6",
-};
+function StatCard({ label, value, sub, accent = "emerald", icon, trend }) {
+  const accentClasses = {
+    emerald: "cc-card--accent-emerald",
+    cyan: "cc-card--accent-cyan",
+    amber: "cc-card--accent-amber",
+    rose: "cc-card--accent-rose",
+  };
 
-function StatCard({ label, value, sub, accent }) {
-  const colors = { green:"#4edea3", cyan:"#4cd7f6", amber:"#f59e0b", red:"#fca5a5" };
-  const glows  = { green:"rgba(78,222,163,.08)", cyan:"rgba(76,215,246,.08)", amber:"rgba(245,158,11,.08)", red:"rgba(255,100,100,.08)" };
-  const borders= { green:"rgba(78,222,163,.15)", cyan:"rgba(76,215,246,.15)", amber:"rgba(245,158,11,.15)", red:"rgba(255,100,100,.15)" };
-  return (
-    <div style={{ background: glows[accent]||S.surface, border:`1px solid ${borders[accent]||S.border}`, borderRadius:16, padding:20 }}>
-      <p style={{ fontSize:12, fontWeight:600, letterSpacing:".04em", textTransform:"uppercase", color:S.muted }}>{label}</p>
-      <p style={{ fontSize:32, fontWeight:800, fontFamily:"'Plus Jakarta Sans',sans-serif", color: colors[accent]||S.text, marginTop:6, marginBottom:4, lineHeight:1 }}>
-        {value}
-      </p>
-      <p style={{ fontSize:12, color:S.dim }}>{sub}</p>
-    </div>
-  );
-}
+  const colors = {
+    emerald: "#34d399",
+    cyan: "#38bdf8",
+    amber: "#fbbf24",
+    rose: "#fb7185",
+  };
 
-function StockBar({ label, count, pct, color }) {
+  const bgTints = {
+    emerald: "rgba(16,185,129,0.04)",
+    cyan: "rgba(6,182,212,0.04)",
+    amber: "rgba(245,158,11,0.04)",
+    rose: "rgba(244,63,94,0.04)",
+  };
+
   return (
-    <div>
-      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-        <span style={{ fontSize:13, color:S.muted }}>{label}</span>
-        <span style={{ fontSize:13, fontWeight:600, color }}>{count}</span>
+    <div
+      className={`cc-card ${accentClasses[accent] || ""}`}
+      style={{
+        padding: "22px 24px",
+        background: bgTints[accent] || "var(--cc-bg-card)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        minHeight: 148,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <p style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "#94a3b8",
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>
+            {label}
+          </p>
+          <p style={{
+            fontSize: 32,
+            fontWeight: 800,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: colors[accent] || "#f8fafc",
+            marginTop: 6,
+            lineHeight: 1.1,
+            letterSpacing: "-0.02em",
+          }}>
+            {value}
+          </p>
+        </div>
+        {icon && (
+          <div style={{
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: colors[accent],
+            flexShrink: 0,
+          }}>
+            {icon}
+          </div>
+        )}
       </div>
-      <div style={{ height:6, background:"rgba(255,255,255,.05)", borderRadius:99, overflow:"hidden" }}>
-        <div style={{ height:"100%", width:`${pct}%`, background:color, borderRadius:99, transition:"width .5s ease" }}/>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <p style={{ fontSize: 12, color: "#64748b" }}>{sub}</p>
+        {trend && (
+          <span style={{
+            fontSize: 11,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontWeight: 600,
+            color: colors[accent],
+          }}>
+            {trend}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -41,9 +98,9 @@ function StockBar({ label, count, pct, color }) {
 
 function Dashboard() {
   const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [alertData, setAlertData] = useState(null);
-  const [scanning, setScanning]   = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [recentMovements, setRecentMovements] = useState([]);
 
   useEffect(() => {
@@ -51,11 +108,15 @@ function Dashboard() {
       try {
         const data = await api.get("/products");
         setProducts(data.data || []);
-      } catch { /* silent */ } finally { setLoading(false); }
+      } catch {
+        /* silent fallback */
+      } finally {
+        setLoading(false);
+      }
     };
     fetch_();
 
-    // Fetch recent stock movements from standalone microservice
+    // Fetch recent stock movements from the microservice
     api.getStockMovements({ limit: 6 })
       .then((res) => setRecentMovements(res.data || []))
       .catch(() => {});
@@ -74,356 +135,705 @@ function Dashboard() {
     }
   };
 
-  const totalProducts   = products.length;
-  const totalStock      = products.reduce((t,p) => t + Number(p.quantity||0), 0);
-  const lowStockList    = products.filter(p => Number(p.quantity||0)>0 && Number(p.quantity||0)<=Number(p.minStock||0));
-  const outOfStockList  = products.filter(p => Number(p.quantity||0)===0);
-  const inStockList     = products.filter(p => Number(p.quantity||0)>Number(p.minStock||0));
-  const inventoryValue  = products.reduce((t,p) => t + Number(p.quantity||0)*Number(p.price||0), 0);
-  const recentProducts  = [...products].sort((a,b)=>(b.createdAt?._seconds||0)-(a.createdAt?._seconds||0)).slice(0,5);
+  const totalProducts = products.length;
+  const totalStock = products.reduce((t, p) => t + Number(p.quantity || 0), 0);
+  const lowStockList = products.filter(
+    (p) => Number(p.quantity || 0) > 0 && Number(p.quantity || 0) <= Number(p.minStock || 0)
+  );
+  const outOfStockList = products.filter((p) => Number(p.quantity || 0) === 0);
+  const inStockList = products.filter((p) => Number(p.quantity || 0) > Number(p.minStock || 0));
+  const inventoryValue = products.reduce(
+    (t, p) => t + Number(p.quantity || 0) * Number(p.price || 0),
+    0
+  );
+  const recentProducts = [...products]
+    .sort((a, b) => (b.createdAt?._seconds || 0) - (a.createdAt?._seconds || 0))
+    .slice(0, 5);
 
-  const total4Pct = inStockList.length + lowStockList.length + outOfStockList.length || 1;
-  const inPct     = (inStockList.length / total4Pct)*100;
-  const lowPct    = (lowStockList.length / total4Pct)*100;
-  const outPct    = (outOfStockList.length / total4Pct)*100;
-
-  const qtyColor = (product) => {
-    const q = Number(product.quantity||0);
-    if (q===0) return "#fca5a5";
-    if (q<=Number(product.minStock||0)) return "#f59e0b";
-    return "#4edea3";
-  };
+  const totalSegments = inStockList.length + lowStockList.length + outOfStockList.length || 1;
+  const inPct = Math.round((inStockList.length / totalSegments) * 100);
+  const lowPct = Math.round((lowStockList.length / totalSegments) * 100);
+  const outPct = Math.max(0, 100 - inPct - lowPct);
 
   return (
     <AppLayout>
-      <div style={{ maxWidth:1200, margin:"0 auto", padding:"32px 24px 64px", color:S.text }}>
+      <div style={{ maxWidth: 1260, margin: "0 auto", padding: "28px 24px 64px" }}>
 
-          {/* Page header */}
-          <header style={{ display:"flex", flexWrap:"wrap", justifyContent:"space-between", alignItems:"flex-start", gap:16, marginBottom:32 }}>
-            <div>
-              <p style={{ fontSize:12, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:S.green, marginBottom:6 }}>Overview</p>
-              <h1 style={{ fontSize:30, fontWeight:800, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:6 }}>Dashboard</h1>
-              <p style={{ fontSize:14, color:S.muted }}>Here's what's happening with your inventory.</p>
+        {/* Command Center Telemetry Header */}
+        <header style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 20,
+          marginBottom: 32,
+          paddingBottom: 24,
+          borderBottom: "1px solid rgba(255,255,255,0.07)"
+        }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <span className="cc-dot-live" />
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "#34d399",
+                fontFamily: "'JetBrains Mono', monospace"
+              }}>
+                Telemetry Console • Active Session
+              </span>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <button
-                onClick={handleScanAlerts}
-                disabled={scanning}
-                title="Trigger the standalone Low-Stock Alert Microservice"
-                style={{
-                  display:"inline-flex",
-                  alignItems:"center",
-                  gap:8,
-                  padding:"11px 18px",
-                  borderRadius:12,
-                  background:"rgba(245,158,11,.12)",
-                  border:"1px solid rgba(245,158,11,.3)",
-                  color:"#f59e0b",
-                  fontWeight:600,
-                  fontSize:14,
-                  cursor: scanning ? "not-allowed" : "pointer",
-                  whiteSpace:"nowrap",
-                  transition:"all .2s ease",
-                  opacity: scanning ? 0.7 : 1,
-                  boxShadow:"0 2px 8px rgba(0,0,0,.2)",
-                }}
-                onMouseEnter={e => {
-                  if (!scanning) {
-                    e.currentTarget.style.background = "rgba(245,158,11,.2)";
-                    e.currentTarget.style.borderColor = "#f59e0b";
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!scanning) {
-                    e.currentTarget.style.background = "rgba(245,158,11,.12)";
-                    e.currentTarget.style.borderColor = "rgba(245,158,11,.3)";
-                  }
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                {scanning ? "Scanning Alerts..." : "⚡ Run Stock Alert Scan"}
-              </button>
+            <h1 style={{
+              fontSize: 28,
+              fontWeight: 800,
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              letterSpacing: "-0.03em",
+              color: "#f8fafc",
+              margin: 0
+            }}>
+              Mission Control & Inventory Intelligence
+            </h1>
+            <p style={{ fontSize: 14, color: "#94a3b8", marginTop: 4 }}>
+              Real-time audit trails, stock telemetry, and predictive reorder insights.
+            </p>
+          </div>
 
-              <Link
-                to="/products"
-                style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:12, background:"linear-gradient(135deg,#10b981,#059669)", color:"#fff", fontWeight:600, fontSize:14, boxShadow:"0 0 18px rgba(78,222,163,.25)", transition:"all .2s", whiteSpace:"nowrap" }}
-                onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 0 28px rgba(78,222,163,.4)"; e.currentTarget.style.transform="translateY(-1px)"; }}
-                onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 0 18px rgba(78,222,163,.25)"; e.currentTarget.style.transform="none"; }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                Add Product
-              </Link>
-            </div>
-          </header>
-
-          {loading ? (
-            <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:48, textAlign:"center", color:S.muted }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation:"spin 1s linear infinite", marginBottom:12 }}>
-                <circle cx="12" cy="12" r="10" strokeOpacity=".2"/><path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {/* Run Alert Scan Trigger */}
+            <button
+              onClick={handleScanAlerts}
+              disabled={scanning}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 18px",
+                borderRadius: 12,
+                background: "rgba(245,158,11,0.12)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                color: "#fbbf24",
+                fontWeight: 600,
+                fontSize: 13,
+                fontFamily: "'JetBrains Mono', monospace",
+                cursor: scanning ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                transition: "all .18s cubic-bezier(0.16, 1, 0.3, 1)",
+                opacity: scanning ? 0.7 : 1,
+                boxShadow: "0 0 16px rgba(245,158,11,0.15)"
+              }}
+              onMouseEnter={(e) => {
+                if (!scanning) {
+                  e.currentTarget.style.background = "rgba(245,158,11,0.2)";
+                  e.currentTarget.style.borderColor = "#fbbf24";
+                  e.currentTarget.style.boxShadow = "0 0 24px rgba(245,158,11,0.3)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!scanning) {
+                  e.currentTarget.style.background = "rgba(245,158,11,0.12)";
+                  e.currentTarget.style.borderColor = "rgba(245,158,11,0.3)";
+                  e.currentTarget.style.boxShadow = "0 0 16px rgba(245,158,11,0.15)";
+                }
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m13 2-2 10h5L11 22l2-10H8Z" />
               </svg>
-              <p>Loading inventory…</p>
-              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-            </div>
-          ) : (
-            <>
-              {/* Stats */}
-              <section style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:16, marginBottom:24 }}>
-                <StatCard label="Total Products"   value={totalProducts} sub="Products in inventory"  accent="green" />
-                <StatCard label="Total Stock"      value={totalStock}    sub="Units available"          />
-                <StatCard label="Low Stock"        value={lowStockList.length} sub="Need attention"    accent="amber" />
-                <StatCard label="Inventory Value"  value={`${inventoryValue.toLocaleString()} ETB`} sub="Current total value" accent="cyan" />
-              </section>
+              {scanning ? "Evaluating Triggers..." : "⚡ Run Stock Alert Scan"}
+            </button>
 
-              {/* Content */}
-              <section style={{ display:"grid", gridTemplateColumns:"1fr", gap:20 }} className="xl:grid-cols-3-custom">
-                <div style={{ display:"grid", gap:20, gridTemplateColumns:"2fr 1fr" }} className="db-grid">
+            {/* Ingest SKU Action */}
+            <Link
+              to="/products"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 20px",
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                color: "#ffffff",
+                fontWeight: 600,
+                fontSize: 13,
+                boxShadow: "0 0 20px rgba(16,185,129,0.35)",
+                transition: "all .18s ease",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                border: "1px solid rgba(255,255,255,0.2)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = "0 0 28px rgba(16,185,129,0.55)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = "0 0 20px rgba(16,185,129,0.35)";
+                e.currentTarget.style.transform = "none";
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Manage Catalog
+            </Link>
+          </div>
+        </header>
 
-                  {/* Recent Products */}
-                  <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:24 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-                      <div>
-                        <h2 style={{ fontSize:16, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif" }}>Recent Products</h2>
-                        <p style={{ fontSize:13, color:S.muted, marginTop:3 }}>Your latest inventory additions.</p>
-                      </div>
-                      <Link to="/products" style={{ fontSize:13, color:S.green, fontWeight:500 }}
-                        onMouseEnter={e=>e.currentTarget.style.opacity=".7"}
-                        onMouseLeave={e=>e.currentTarget.style.opacity="1"}
-                      >View all →</Link>
+        {loading ? (
+          <div className="cc-card" style={{ padding: "64px 20px", textAlign: "center", color: "#94a3b8" }}>
+            <div style={{
+              display: "inline-block",
+              width: 38,
+              height: 38,
+              border: "3px solid rgba(16,185,129,0.2)",
+              borderTopColor: "#34d399",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }} />
+            <p style={{ marginTop: 16, fontSize: 14, fontFamily: "'JetBrains Mono', monospace" }}>
+              Initializing Command Center telemetry stream...
+            </p>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          </div>
+        ) : (
+          <>
+            {/* 4 Telemetry Metric HUD Cards */}
+            <section style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 16,
+              marginBottom: 24
+            }}>
+              <StatCard
+                label="Catalog SKUs"
+                value={totalProducts}
+                sub="Tracked inventory items"
+                accent="emerald"
+                trend="ONLINE"
+                icon={(
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect width="8" height="8" x="3" y="3" rx="1.5" />
+                    <path d="M7 11v4a2 2 0 0 0 2 2h4" />
+                    <rect width="8" height="8" x="13" y="13" rx="1.5" />
+                  </svg>
+                )}
+              />
+
+              <StatCard
+                label="Units in Warehouse"
+                value={totalStock.toLocaleString()}
+                sub="Available physical stock"
+                accent="cyan"
+                trend={`${inStockList.length} Healthy`}
+                icon={(
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <path d="M12 22V12" />
+                  </svg>
+                )}
+              />
+
+              <StatCard
+                label="Restock Alerts"
+                value={lowStockList.length + outOfStockList.length}
+                sub={`${outOfStockList.length} depleted • ${lowStockList.length} critical`}
+                accent={lowStockList.length + outOfStockList.length > 0 ? "amber" : "emerald"}
+                trend={outOfStockList.length > 0 ? "URGENT" : "STABLE"}
+                icon={(
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                )}
+              />
+
+              <StatCard
+                label="Asset Valuation"
+                value={`${inventoryValue.toLocaleString()} ETB`}
+                sub="Calculated at unit prices"
+                accent="cyan"
+                trend="GROSS"
+                icon={(
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                    <path d="M12 18V6" />
+                  </svg>
+                )}
+              />
+            </section>
+
+            {/* Inventory Health Radar Banner */}
+            <section className="cc-card" style={{ padding: "20px 24px", marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", margin: 0, color: "#f8fafc" }}>
+                    Warehouse Stock Level Distribution
+                  </h3>
+                  <p style={{ fontSize: 12, color: "#94a3b8", margin: "2px 0 0" }}>
+                    Automated ratio of in-stock versus critical reorder thresholds
+                  </p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#34d399" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
+                    Healthy: {inPct}% ({inStockList.length})
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#fbbf24" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} />
+                    Low Stock: {lowPct}% ({lowStockList.length})
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, color: "#fb7185" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f43f5e" }} />
+                    Depleted: {outPct}% ({outOfStockList.length})
+                  </span>
+                </div>
+              </div>
+
+              {/* Segmented multi-tone bar */}
+              <div style={{ height: 10, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden", display: "flex" }}>
+                <div style={{ width: `${inPct}%`, background: "linear-gradient(90deg, #10b981, #34d399)", transition: "width .5s ease" }} />
+                <div style={{ width: `${lowPct}%`, background: "linear-gradient(90deg, #f59e0b, #fbbf24)", transition: "width .5s ease" }} />
+                <div style={{ width: `${outPct}%`, background: "linear-gradient(90deg, #f43f5e, #fb7185)", transition: "width .5s ease" }} />
+              </div>
+            </section>
+
+            {/* Dual Column Telemetry View */}
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: 20 }}>
+
+              {/* Left Column: Recent Catalog Ingestion */}
+              <div className="cc-card" style={{ padding: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
+                      <h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", margin: 0, color: "#f8fafc" }}>
+                        Recent Catalog Ingestion
+                      </h2>
                     </div>
-
-                    {recentProducts.length === 0 ? (
-                      <div style={{ minHeight:240, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center" }}>
-                        <div style={{ fontSize:48, marginBottom:12 }}>📦</div>
-                        <h3 style={{ fontWeight:600, marginBottom:6 }}>No products yet</h3>
-                        <p style={{ fontSize:13, color:S.muted, marginBottom:20 }}>Start by adding your first product.</p>
-                        <Link to="/products" style={{ padding:"9px 18px", borderRadius:10, border:`1px solid ${S.border}`, fontSize:13, fontWeight:500, color:S.text, transition:"all .2s" }}>Add Product</Link>
-                      </div>
-                    ) : (
-                      <div style={{ overflowX:"auto" }}>
-                        <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                          <thead>
-                            <tr style={{ borderBottom:`1px solid ${S.border}` }}>
-                              {["Product","Category","Stock","Price"].map((h,i) => (
-                                <th key={h} style={{ padding:"0 0 10px", textAlign: i===3?"right":"left", fontSize:11, fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", color:S.dim }}>{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {recentProducts.map(p => (
-                              <tr key={p.id} style={{ borderBottom:`1px solid rgba(255,255,255,.04)` }}>
-                                <td style={{ padding:"13px 0", fontWeight:600, fontSize:14 }}>{p.name}</td>
-                                <td style={{ padding:"13px 0", fontSize:13, color:S.muted }}>{p.category}</td>
-                                <td style={{ padding:"13px 0", fontWeight:700, color:qtyColor(p), fontFamily:"'JetBrains Mono',monospace", fontSize:13 }}>{p.quantity}</td>
-                                <td style={{ padding:"13px 0", textAlign:"right", fontSize:13, color:S.muted }}>{Number(p.price).toLocaleString()} ETB</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
+                      Newly registered products and initial stock balances.
+                    </p>
                   </div>
+                  <Link
+                    to="/products"
+                    style={{
+                      fontSize: 12,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      color: "#34d399",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}
+                  >
+                    All Products →
+                  </Link>
+                </div>
 
-                  {/* Stock Status */}
-                  <div style={{ background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:24 }}>
-                    <h2 style={{ fontSize:16, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", marginBottom:4 }}>Stock Status</h2>
-                    <p style={{ fontSize:13, color:S.muted, marginBottom:28 }}>Inventory health overview.</p>
-                    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-                      <StockBar label="In Stock"     count={inStockList.length}   pct={inPct}  color="#4edea3" />
-                      <StockBar label="Low Stock"    count={lowStockList.length}  pct={lowPct} color="#f59e0b" />
-                      <StockBar label="Out of Stock" count={outOfStockList.length} pct={outPct} color="#f87171" />
-                    </div>
+                {recentProducts.length === 0 ? (
+                  <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>
+                    <div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#f1f5f9" }}>Catalog is currently empty</p>
+                    <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>Add your first SKU to activate telemetry monitoring.</p>
                   </div>
-
-                  {/* Stock Movement Ledger Activity */}
-                  <div style={{ gridColumn:"1 / -1", background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:24, marginTop:8 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:12 }}>
-                      <div>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                          <span style={{ width:8, height:8, borderRadius:"50%", background:"#4cd7f6", boxShadow:"0 0 8px #4cd7f6" }} />
-                          <h2 style={{ fontSize:16, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", margin:0 }}>Stock Movement Audit Ledger</h2>
-                        </div>
-                        <p style={{ fontSize:13, color:S.muted, margin:0 }}>Live transactions captured by the standalone stock movement microservice.</p>
-                      </div>
-                      <Link to="/products" style={{ fontSize:13, color:S.cyan, fontWeight:500 }}
-                        onMouseEnter={e => e.currentTarget.style.opacity=".7"}
-                        onMouseLeave={e => e.currentTarget.style.opacity="1"}
-                      >Open full ledger →</Link>
-                    </div>
-
-                    {recentMovements.length === 0 ? (
-                      <div style={{ padding:"28px 0", textAlign:"center", color:S.muted }}>
-                        <p style={{ fontSize:14 }}>No stock movements recorded yet.</p>
-                        <p style={{ fontSize:12, color:S.dim, marginTop:4 }}>Inbound shipments, sales, and audit counts will automatically stream into this audit ledger.</p>
-                      </div>
-                    ) : (
-                      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                        {recentMovements.slice(0, 5).map((m) => {
-                          const isPositive = (m.delta || 0) > 0;
-                          const dateStr = m.createdAt
-                            ? typeof m.createdAt === "string"
-                              ? new Date(m.createdAt).toLocaleDateString()
-                              : m.createdAt._seconds
-                              ? new Date(m.createdAt._seconds * 1000).toLocaleDateString()
-                              : "Recent"
-                            : "Recent";
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                          <th style={{ padding: "0 0 10px", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Product / SKU</th>
+                          <th style={{ padding: "0 0 10px", textAlign: "left", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Category</th>
+                          <th style={{ padding: "0 0 10px", textAlign: "center", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Units</th>
+                          <th style={{ padding: "0 0 10px", textAlign: "right", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>Unit Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recentProducts.map((p) => {
+                          const qty = Number(p.quantity || 0);
+                          const min = Number(p.minStock || 0);
+                          const qtyColor = qty === 0 ? "#fb7185" : qty <= min ? "#fbbf24" : "#34d399";
 
                           return (
-                            <div key={m.id} style={{
-                              display:"flex",
-                              justifyContent:"space-between",
-                              alignItems:"center",
-                              padding:"12px 16px",
-                              borderRadius:10,
-                              background:"rgba(255,255,255,.02)",
-                              border:"1px solid rgba(255,255,255,.04)",
-                              flexWrap:"wrap",
-                              gap:8,
-                            }}>
-                              <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-                                <span style={{
-                                  padding:"3px 8px",
-                                  borderRadius:6,
-                                  fontSize:11,
-                                  fontWeight:700,
-                                  textTransform:"uppercase",
-                                  background: isPositive ? "rgba(78,222,163,.1)" : "rgba(255,100,100,.1)",
-                                  color: isPositive ? "#4edea3" : "#fca5a5",
-                                  border: `1px solid ${isPositive ? "rgba(78,222,163,.2)" : "rgba(255,100,100,.2)"}`,
-                                }}>
-                                  {m.type}
+                            <tr
+                              key={p.id}
+                              style={{
+                                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                                transition: "background .15s ease",
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.02)"}
+                              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                            >
+                              <td style={{ padding: "12px 0" }}>
+                                <div style={{ fontWeight: 600, color: "#f8fafc" }}>{p.name}</div>
+                                <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#38bdf8" }}>{p.sku}</div>
+                              </td>
+                              <td style={{ padding: "12px 0", color: "#94a3b8" }}>
+                                <span style={{ padding: "2px 7px", borderRadius: 6, background: "rgba(255,255,255,0.04)", fontSize: 11 }}>
+                                  {p.category || "General"}
                                 </span>
-                                <div>
-                                  <span style={{ fontWeight:600, fontSize:13, color:S.text }}>{m.productName}</span>
-                                  <span style={{ fontSize:12, color:S.dim, marginLeft:6 }}>({m.sku})</span>
-                                  {m.reason && <span style={{ fontSize:12, color:S.muted, marginLeft:8 }}>• {m.reason}</span>}
-                                  {m.referenceNumber && <span style={{ fontSize:11, color:S.cyan, marginLeft:6, fontFamily:"'JetBrains Mono',monospace" }}>[{m.referenceNumber}]</span>}
-                                </div>
-                              </div>
-                              <div style={{ textAlign:"right" }}>
+                              </td>
+                              <td style={{ padding: "12px 0", textAlign: "center" }}>
                                 <span style={{
-                                  fontWeight:700,
-                                  fontFamily:"'JetBrains Mono',monospace",
-                                  color: isPositive ? "#4edea3" : "#fca5a5",
-                                  fontSize:14,
+                                  fontWeight: 700,
+                                  fontFamily: "'JetBrains Mono', monospace",
+                                  color: qtyColor,
+                                  fontSize: 13
                                 }}>
-                                  {isPositive ? `+${m.quantity}` : `-${m.quantity}`}
+                                  {qty}
                                 </span>
-                                <span style={{ fontSize:11, color:S.dim, marginLeft:10 }}>{dateStr}</span>
-                              </div>
-                            </div>
+                              </td>
+                              <td style={{ padding: "12px 0", textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: "#cbd5e1" }}>
+                                {Number(p.price).toLocaleString()} ETB
+                              </td>
+                            </tr>
                           );
                         })}
-                      </div>
-                    )}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              </section>
-            </>
-          )}
+                )}
+              </div>
 
-          {/* Low Stock Alert Microservice Modal */}
-          {alertData && (
-            <div style={{ position:"fixed", inset:0, background:"rgba(3,20,39,.8)", backdropFilter:"blur(8px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:20 }}>
-              <div style={{ background:"#0b1c30", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, maxWidth:680, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 20px 50px rgba(0,0,0,.6)" }}>
-                {/* Modal Header */}
-                <div style={{ padding:"20px 24px", borderBottom:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ width:36, height:36, borderRadius:10, background:"rgba(245,158,11,.15)", border:"1px solid rgba(245,158,11,.3)", display:"flex", alignItems:"center", justifyContent:"center", color:"#f59e0b" }}>
-                      ⚡
-                    </div>
-                    <div>
-                      <h2 style={{ fontSize:18, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", margin:0 }}>Low-Stock Alert Report</h2>
-                      <p style={{ fontSize:12, color:S.muted, margin:"2px 0 0" }}>Generated by standalone alert microservice</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setAlertData(null)} style={{ background:"none", border:"none", color:S.muted, fontSize:20, cursor:"pointer" }}>✕</button>
-                </div>
-
-                {/* Modal Body */}
-                <div style={{ padding:24, overflowY:"auto", display:"flex", flexDirection:"column", gap:20 }}>
-                  {/* Summary Metric Pills */}
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
-                    <div style={{ background:"rgba(248,113,113,.1)", border:"1px solid rgba(248,113,113,.25)", borderRadius:12, padding:"12px 16px" }}>
-                      <p style={{ fontSize:11, textTransform:"uppercase", color:"#fca5a5", fontWeight:600, margin:0 }}>Out of Stock</p>
-                      <p style={{ fontSize:22, fontWeight:800, color:"#f87171", margin:"4px 0 0" }}>{alertData.summary?.outOfStockCount || 0}</p>
-                    </div>
-                    <div style={{ background:"rgba(245,158,11,.1)", border:"1px solid rgba(245,158,11,.25)", borderRadius:12, padding:"12px 16px" }}>
-                      <p style={{ fontSize:11, textTransform:"uppercase", color:"#fcd34d", fontWeight:600, margin:0 }}>Low Stock</p>
-                      <p style={{ fontSize:22, fontWeight:800, color:"#f59e0b", margin:"4px 0 0" }}>{alertData.summary?.lowStockCount || 0}</p>
-                    </div>
-                    <div style={{ background:"rgba(76,215,246,.1)", border:"1px solid rgba(76,215,246,.25)", borderRadius:12, padding:"12px 16px" }}>
-                      <p style={{ fontSize:11, textTransform:"uppercase", color:"#bae6fd", fontWeight:600, margin:0 }}>Est. Restock Cost</p>
-                      <p style={{ fontSize:18, fontWeight:800, color:"#4cd7f6", margin:"4px 0 0" }}>{Number(alertData.summary?.estimatedRestockCost || 0).toLocaleString()} ETB</p>
-                    </div>
-                  </div>
-
-                  {/* Items Table */}
+              {/* Right Column: Live Stock Movement Ledger */}
+              <div className="cc-card" style={{ padding: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
                   <div>
-                    <h3 style={{ fontSize:14, fontWeight:600, marginBottom:12, color:S.text }}>Items Needing Restock ({alertData.alerts?.length || 0})</h3>
-                    {alertData.alerts?.length === 0 ? (
-                      <p style={{ color:S.green, fontSize:13 }}>No low stock alerts! All inventory levels are healthy.</p>
-                    ) : (
-                      <div style={{ background:"rgba(16,32,52,.6)", border:"1px solid rgba(255,255,255,.06)", borderRadius:12, overflow:"hidden" }}>
-                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-                          <thead>
-                            <tr style={{ borderBottom:"1px solid rgba(255,255,255,.06)", color:S.dim }}>
-                              <th style={{ padding:"10px 14px", textAlign:"left" }}>Product</th>
-                              <th style={{ padding:"10px 14px", textAlign:"center" }}>Current / Min</th>
-                              <th style={{ padding:"10px 14px", textAlign:"center" }}>Reorder Suggestion</th>
-                              <th style={{ padding:"10px 14px", textAlign:"right" }}>Est. Cost</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {alertData.alerts?.map((item) => (
-                              <tr key={item.productId} style={{ borderBottom:"1px solid rgba(255,255,255,.04)" }}>
-                                <td style={{ padding:"12px 14px" }}>
-                                  <div style={{ fontWeight:600, color:S.text }}>{item.name}</div>
-                                  <div style={{ fontSize:11, color:S.muted }}>{item.sku}</div>
-                                </td>
-                                <td style={{ padding:"12px 14px", textAlign:"center" }}>
-                                  <span style={{ fontWeight:700, color: item.status === "OUT_OF_STOCK" ? "#f87171" : "#f59e0b" }}>
-                                    {item.currentStock}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#38bdf8", boxShadow: "0 0 8px #38bdf8" }} />
+                      <h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: "'Plus Jakarta Sans', sans-serif", margin: 0, color: "#f8fafc" }}>
+                        Stock Movement Audit Stream
+                      </h2>
+                    </div>
+                    <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
+                      Live transactions captured by the standalone ledger microservice.
+                    </p>
+                  </div>
+                  <Link
+                    to="/products"
+                    style={{
+                      fontSize: 12,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      color: "#38bdf8",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}
+                  >
+                    Open Full Ledger →
+                  </Link>
+                </div>
+
+                {recentMovements.length === 0 ? (
+                  <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8" }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#f1f5f9" }}>No movement transactions yet</p>
+                    <p style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                      Record receipts, sales, or audit corrections to generate immutable ledger entries.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {recentMovements.slice(0, 5).map((m) => {
+                      const isPositive = (m.delta || 0) > 0;
+                      const typeLabel = {
+                        received: "RECEIVED",
+                        sold: "DISPATCHED",
+                        returned: "RETURN",
+                        damaged: "DAMAGED",
+                        lost: "SHRINKAGE",
+                        adjustment: "AUDIT ADJ",
+                        audit_adjustment: "RECONCILED",
+                      }[m.type] || m.type.toUpperCase();
+
+                      const dateStr = m.createdAt
+                        ? typeof m.createdAt === "string"
+                          ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : m.createdAt._seconds
+                          ? new Date(m.createdAt._seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : "Now"
+                        : "Now";
+
+                      return (
+                        <div
+                          key={m.id}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "12px 14px",
+                            borderRadius: 12,
+                            background: "rgba(255,255,255,0.02)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            gap: 12,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                            <span style={{
+                              padding: "2px 7px",
+                              borderRadius: 5,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              fontFamily: "'JetBrains Mono', monospace",
+                              background: isPositive ? "rgba(16,185,129,0.12)" : "rgba(244,63,94,0.12)",
+                              color: isPositive ? "#34d399" : "#fb7185",
+                              border: `1px solid ${isPositive ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}`,
+                              flexShrink: 0
+                            }}>
+                              {typeLabel}
+                            </span>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: "#f8fafc", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {m.productName || "Product"}
+                                <span style={{ color: "#64748b", fontSize: 11, marginLeft: 6 }}>({m.sku})</span>
+                              </p>
+                              <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0" }}>
+                                {m.reason || "Inventory movement"}
+                                {m.referenceNumber && (
+                                  <span style={{ marginLeft: 6, color: "#38bdf8", fontFamily: "'JetBrains Mono', monospace" }}>
+                                    #{m.referenceNumber}
                                   </span>
-                                  <span style={{ color:S.dim, margin:"0 4px" }}>/</span>
-                                  <span style={{ color:S.muted }}>{item.minStock}</span>
-                                </td>
-                                <td style={{ padding:"12px 14px", textAlign:"center", color:"#4edea3", fontWeight:600 }}>
-                                  +{item.suggestedReorder} units
-                                </td>
-                                <td style={{ padding:"12px 14px", textAlign:"right", color:S.muted }}>
-                                  {Number(item.estimatedCost).toLocaleString()} ETB
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            <p style={{
+                              margin: 0,
+                              fontSize: 14,
+                              fontWeight: 800,
+                              fontFamily: "'JetBrains Mono', monospace",
+                              color: isPositive ? "#34d399" : "#fb7185",
+                            }}>
+                              {isPositive ? `+${m.quantity}` : `-${m.quantity}`}
+                            </p>
+                            <span style={{ fontSize: 10, color: "#64748b", fontFamily: "'JetBrains Mono', monospace" }}>
+                              {dateStr}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Low Stock Alert Microservice Modal */}
+        {alertData && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2, 8, 19, 0.85)",
+            backdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: 20
+          }}>
+            <div
+              className="cc-card"
+              style={{
+                maxWidth: 720,
+                width: "100%",
+                maxHeight: "90vh",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                border: "1px solid rgba(245,158,11,0.3)",
+                boxShadow: "0 25px 60px rgba(0,0,0,0.8), 0 0 30px rgba(245,158,11,0.15)",
+                animation: "cc-modal-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{
+                padding: "20px 24px",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "rgba(245,158,11,0.05)"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: "rgba(245,158,11,0.15)",
+                    border: "1px solid rgba(245,158,11,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fbbf24",
+                    fontSize: 20,
+                    boxShadow: "0 0 16px rgba(245,158,11,0.25)"
+                  }}>
+                    ⚡
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, fontFamily: "'Plus Jakarta Sans', sans-serif", margin: 0, color: "#f8fafc" }}>
+                      Stock Alert & Predictive Restock Intelligence
+                    </h2>
+                    <p style={{ fontSize: 12, color: "#94a3b8", margin: "2px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>
+                      Standalone Cloud Microservice Scan Report
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAlertData(null)}
+                  style={{
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 8,
+                    color: "#94a3b8",
+                    width: 32,
+                    height: 32,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer"
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ padding: 24, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Metric Summary Ribbon */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                  <div style={{
+                    background: "rgba(244,63,94,0.08)",
+                    border: "1px solid rgba(244,63,94,0.25)",
+                    borderRadius: 12,
+                    padding: "14px 16px"
+                  }}>
+                    <p style={{ fontSize: 11, textTransform: "uppercase", color: "#fb7185", fontWeight: 700, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>
+                      Depleted (Zero)
+                    </p>
+                    <p style={{ fontSize: 24, fontWeight: 800, color: "#f43f5e", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {alertData.summary?.outOfStockCount || 0}
+                    </p>
                   </div>
 
-                  {/* Audit Footer Notice */}
-                  {alertData.auditLogId && (
-                    <div style={{ fontSize:11, color:S.dim, borderTop:"1px solid rgba(255,255,255,.06)", paddingTop:12 }}>
-                      Audit log recorded in Firestore: <code style={{ color:S.muted }}>inventoryAlerts/{alertData.auditLogId}</code>
+                  <div style={{
+                    background: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.25)",
+                    borderRadius: 12,
+                    padding: "14px 16px"
+                  }}>
+                    <p style={{ fontSize: 11, textTransform: "uppercase", color: "#fbbf24", fontWeight: 700, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>
+                      Low Stock Threshold
+                    </p>
+                    <p style={{ fontSize: 24, fontWeight: 800, color: "#f59e0b", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {alertData.summary?.lowStockCount || 0}
+                    </p>
+                  </div>
+
+                  <div style={{
+                    background: "rgba(6,182,212,0.08)",
+                    border: "1px solid rgba(6,182,212,0.25)",
+                    borderRadius: 12,
+                    padding: "14px 16px"
+                  }}>
+                    <p style={{ fontSize: 11, textTransform: "uppercase", color: "#38bdf8", fontWeight: 700, margin: 0, fontFamily: "'JetBrains Mono', monospace" }}>
+                      Est. Reorder Budget
+                    </p>
+                    <p style={{ fontSize: 20, fontWeight: 800, color: "#38bdf8", margin: "4px 0 0", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {Number(alertData.summary?.estimatedRestockCost || 0).toLocaleString()} ETB
+                    </p>
+                  </div>
+                </div>
+
+                {/* Items Needing Reorder */}
+                <div>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: "#f8fafc" }}>
+                    Recommended Purchase Orders ({alertData.alerts?.length || 0})
+                  </h3>
+
+                  {alertData.alerts?.length === 0 ? (
+                    <div style={{ padding: "24px", textAlign: "center", background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 12 }}>
+                      <p style={{ color: "#34d399", fontWeight: 600, margin: 0 }}>
+                        ✓ All inventory items are above safety minimum stock thresholds.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ background: "rgba(5, 16, 31, 0.7)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, overflow: "hidden" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#64748b", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
+                            <th style={{ padding: "10px 14px", textAlign: "left" }}>Product / SKU</th>
+                            <th style={{ padding: "10px 14px", textAlign: "center" }}>Stock / Min</th>
+                            <th style={{ padding: "10px 14px", textAlign: "center" }}>Suggested Order</th>
+                            <th style={{ padding: "10px 14px", textAlign: "right" }}>Est. Cost</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {alertData.alerts?.map((item) => (
+                            <tr key={item.productId} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                              <td style={{ padding: "12px 14px" }}>
+                                <div style={{ fontWeight: 600, color: "#f8fafc" }}>{item.name}</div>
+                                <div style={{ fontSize: 11, color: "#38bdf8", fontFamily: "'JetBrains Mono', monospace" }}>{item.sku}</div>
+                              </td>
+                              <td style={{ padding: "12px 14px", textAlign: "center", fontFamily: "'JetBrains Mono', monospace" }}>
+                                <span style={{ fontWeight: 700, color: item.status === "OUT_OF_STOCK" ? "#fb7185" : "#fbbf24" }}>
+                                  {item.currentStock}
+                                </span>
+                                <span style={{ color: "#475569", margin: "0 4px" }}>/</span>
+                                <span style={{ color: "#94a3b8" }}>{item.minStock}</span>
+                              </td>
+                              <td style={{ padding: "12px 14px", textAlign: "center", color: "#34d399", fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                                +{item.suggestedReorder} units
+                              </td>
+                              <td style={{ padding: "12px 14px", textAlign: "right", color: "#cbd5e1", fontFamily: "'JetBrains Mono', monospace" }}>
+                                {Number(item.estimatedCost).toLocaleString()} ETB
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
 
-                {/* Modal Footer */}
-                <div style={{ padding:"16px 24px", borderTop:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"flex-end" }}>
-                  <button
-                    onClick={() => setAlertData(null)}
-                    style={{ padding:"9px 20px", borderRadius:10, background:"rgba(255,255,255,.08)", color:S.text, border:"1px solid rgba(255,255,255,.1)", cursor:"pointer", fontWeight:600, fontSize:13 }}
-                  >
-                    Close
-                  </button>
-                </div>
+                {alertData.auditLogId && (
+                  <div style={{ fontSize: 11, color: "#64748b", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                    Audit Ledger ID: <code style={{ color: "#38bdf8" }}>inventoryAlerts/{alertData.auditLogId}</code>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setAlertData(null)}
+                  style={{
+                    padding: "9px 20px",
+                    borderRadius: 10,
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#f8fafc",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 13
+                  }}
+                >
+                  Dismiss Report
+                </button>
               </div>
             </div>
-          )}
+          </div>
+        )}
+
       </div>
     </AppLayout>
   );
