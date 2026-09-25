@@ -44,6 +44,7 @@ function Dashboard() {
   const [loading, setLoading]   = useState(true);
   const [alertData, setAlertData] = useState(null);
   const [scanning, setScanning]   = useState(false);
+  const [recentMovements, setRecentMovements] = useState([]);
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -53,6 +54,11 @@ function Dashboard() {
       } catch { /* silent */ } finally { setLoading(false); }
     };
     fetch_();
+
+    // Fetch recent stock movements from standalone microservice
+    api.getStockMovements({ limit: 6 })
+      .then((res) => setRecentMovements(res.data || []))
+      .catch(() => {});
   }, []);
 
   const handleScanAlerts = async () => {
@@ -229,6 +235,89 @@ function Dashboard() {
                       <StockBar label="Low Stock"    count={lowStockList.length}  pct={lowPct} color="#f59e0b" />
                       <StockBar label="Out of Stock" count={outOfStockList.length} pct={outPct} color="#f87171" />
                     </div>
+                  </div>
+
+                  {/* Stock Movement Ledger Activity */}
+                  <div style={{ gridColumn:"1 / -1", background:S.surface, border:`1px solid ${S.border}`, borderRadius:16, padding:24, marginTop:8 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexWrap:"wrap", gap:12 }}>
+                      <div>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                          <span style={{ width:8, height:8, borderRadius:"50%", background:"#4cd7f6", boxShadow:"0 0 8px #4cd7f6" }} />
+                          <h2 style={{ fontSize:16, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", margin:0 }}>Stock Movement Audit Ledger</h2>
+                        </div>
+                        <p style={{ fontSize:13, color:S.muted, margin:0 }}>Live transactions captured by the standalone stock movement microservice.</p>
+                      </div>
+                      <Link to="/products" style={{ fontSize:13, color:S.cyan, fontWeight:500 }}
+                        onMouseEnter={e => e.currentTarget.style.opacity=".7"}
+                        onMouseLeave={e => e.currentTarget.style.opacity="1"}
+                      >Open full ledger →</Link>
+                    </div>
+
+                    {recentMovements.length === 0 ? (
+                      <div style={{ padding:"28px 0", textAlign:"center", color:S.muted }}>
+                        <p style={{ fontSize:14 }}>No stock movements recorded yet.</p>
+                        <p style={{ fontSize:12, color:S.dim, marginTop:4 }}>Inbound shipments, sales, and audit counts will automatically stream into this audit ledger.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                        {recentMovements.slice(0, 5).map((m) => {
+                          const isPositive = (m.delta || 0) > 0;
+                          const dateStr = m.createdAt
+                            ? typeof m.createdAt === "string"
+                              ? new Date(m.createdAt).toLocaleDateString()
+                              : m.createdAt._seconds
+                              ? new Date(m.createdAt._seconds * 1000).toLocaleDateString()
+                              : "Recent"
+                            : "Recent";
+
+                          return (
+                            <div key={m.id} style={{
+                              display:"flex",
+                              justifyContent:"space-between",
+                              alignItems:"center",
+                              padding:"12px 16px",
+                              borderRadius:10,
+                              background:"rgba(255,255,255,.02)",
+                              border:"1px solid rgba(255,255,255,.04)",
+                              flexWrap:"wrap",
+                              gap:8,
+                            }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                                <span style={{
+                                  padding:"3px 8px",
+                                  borderRadius:6,
+                                  fontSize:11,
+                                  fontWeight:700,
+                                  textTransform:"uppercase",
+                                  background: isPositive ? "rgba(78,222,163,.1)" : "rgba(255,100,100,.1)",
+                                  color: isPositive ? "#4edea3" : "#fca5a5",
+                                  border: `1px solid ${isPositive ? "rgba(78,222,163,.2)" : "rgba(255,100,100,.2)"}`,
+                                }}>
+                                  {m.type}
+                                </span>
+                                <div>
+                                  <span style={{ fontWeight:600, fontSize:13, color:S.text }}>{m.productName}</span>
+                                  <span style={{ fontSize:12, color:S.dim, marginLeft:6 }}>({m.sku})</span>
+                                  {m.reason && <span style={{ fontSize:12, color:S.muted, marginLeft:8 }}>• {m.reason}</span>}
+                                  {m.referenceNumber && <span style={{ fontSize:11, color:S.cyan, marginLeft:6, fontFamily:"'JetBrains Mono',monospace" }}>[{m.referenceNumber}]</span>}
+                                </div>
+                              </div>
+                              <div style={{ textAlign:"right" }}>
+                                <span style={{
+                                  fontWeight:700,
+                                  fontFamily:"'JetBrains Mono',monospace",
+                                  color: isPositive ? "#4edea3" : "#fca5a5",
+                                  fontSize:14,
+                                }}>
+                                  {isPositive ? `+${m.quantity}` : `-${m.quantity}`}
+                                </span>
+                                <span style={{ fontSize:11, color:S.dim, marginLeft:10 }}>{dateStr}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>

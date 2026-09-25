@@ -49,7 +49,16 @@ function Products() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [stockType, setStockType] = useState("received");
   const [stockQuantity, setStockQuantity] = useState("");
+  const [stockReason, setStockReason] = useState("");
+  const [stockReference, setStockReference] = useState("");
   const [stockLoading, setStockLoading] = useState(false);
+
+  // Stock movement history ledger
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState(null);
+  const [historyMovements, setHistoryMovements] = useState([]);
+  const [historySummary, setHistorySummary] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Export CSV
   const [exporting, setExporting] = useState(false);
@@ -70,9 +79,9 @@ function Products() {
   // FETCH PRODUCTS
   // --------------------------------------------------
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (showLoading = false) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
 
       const result = await api.get("/products");
 
@@ -204,6 +213,8 @@ function Products() {
     setSelectedProduct(product);
     setStockType("received");
     setStockQuantity("");
+    setStockReason("");
+    setStockReference("");
     setShowStockModal(true);
   };
 
@@ -214,6 +225,27 @@ function Products() {
     setSelectedProduct(null);
     setStockQuantity("");
     setStockType("received");
+    setStockReason("");
+    setStockReference("");
+  };
+
+  const openHistoryModal = async (product = null) => {
+    setHistoryProduct(product);
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
+    try {
+      const res = await api.getStockMovements({
+        productId: product ? product.id : undefined,
+        limit: 50,
+      });
+      setHistoryMovements(res.data || []);
+      setHistorySummary(res.summary || null);
+    } catch (err) {
+      console.error("Failed to load movement ledger:", err);
+      alert(err.message || "Could not load stock ledger.");
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   const isStockIncrease =
@@ -249,13 +281,13 @@ function Products() {
     try {
       setStockLoading(true);
 
-      const result = await api.post(
-        `/products/${selectedProduct.id}/stock`,
-        {
-          type: stockType,
-          quantity: movementQuantity,
-        }
-      );
+      const result = await api.recordStockMovement({
+        productId: selectedProduct.id,
+        type: stockType,
+        quantity: movementQuantity,
+        reason: stockReason.trim() || undefined,
+        referenceNumber: stockReference.trim() || undefined,
+      });
 
       // Update the product immediately in the UI
       setProducts((previousProducts) =>
@@ -272,7 +304,7 @@ function Products() {
       closeStockModal();
     } catch (error) {
       console.error("Stock movement error:", error);
-      alert(error.message);
+      alert(error.message || "Failed to record stock movement.");
     } finally {
       setStockLoading(false);
     }
@@ -361,6 +393,44 @@ function Products() {
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 {exporting ? "Exporting..." : "Export CSV"}
+              </button>
+
+              <button
+                onClick={() => openHistoryModal(null)}
+                title="View complete stock movement audit ledger"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "11px 18px",
+                  borderRadius: 12,
+                  background: "rgba(76,215,246,.1)",
+                  border: "1px solid rgba(76,215,246,.35)",
+                  color: "#4cd7f6",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "all .2s ease",
+                  boxShadow: "0 2px 8px rgba(0,0,0,.2)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(76,215,246,.18)";
+                  e.currentTarget.style.borderColor = "#4cd7f6";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(76,215,246,.1)";
+                  e.currentTarget.style.borderColor = "rgba(76,215,246,.35)";
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                Movement Ledger
               </button>
 
               {canManageProducts && (
@@ -520,6 +590,25 @@ function Products() {
                                   Stock
                                 </button>
                                 <button
+                                  onClick={() => openHistoryModal(product)}
+                                  title="View stock movement history for this item"
+                                  style={{
+                                    display:"inline-flex", alignItems:"center", gap:5,
+                                    padding:"6px 12px", borderRadius:8,
+                                    background:"rgba(76,215,246,.08)", color:"#4cd7f6",
+                                    border:"1px solid rgba(76,215,246,.25)",
+                                    fontSize:12, fontWeight:600, cursor:"pointer",
+                                    transition:"all .15s",
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background="rgba(76,215,246,.18)"}
+                                  onMouseLeave={e => e.currentTarget.style.background="rgba(76,215,246,.08)"}
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                                  </svg>
+                                  Audit
+                                </button>
+                                <button
                                   onClick={() => handleEdit(product)}
                                   title="Edit product details"
                                   style={{
@@ -599,10 +688,11 @@ function Products() {
                 <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>Stock Action</label>
                 <select value={stockType} onChange={e => setStockType(e.target.value)}
                   style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.9)", color:"#d3e4fe", fontSize:14, outline:"none" }}>
-                  <option value="received">Received / Imported</option>
-                  <option value="sold">Sold</option>
-                  <option value="returned">Customer Return</option>
-                  <option value="damaged">Damaged / Lost</option>
+                  <option value="received">Received / Inbound Shipment (+)</option>
+                  <option value="returned">Customer Return (+)</option>
+                  <option value="sold">Sold / Dispatch (-)</option>
+                  <option value="damaged">Damaged / Waste (-)</option>
+                  <option value="lost">Lost / Shrinkage (-)</option>
                 </select>
               </div>
 
@@ -610,7 +700,25 @@ function Products() {
                 <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>Quantity</label>
                 <input type="number" min="1" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)}
                   placeholder="Enter quantity" required
-                  style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none" }}
+                  style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                  onFocus={e => e.target.style.borderColor="#4edea3"}
+                  onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"} />
+              </div>
+
+              <div>
+                <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>Reason / Notes (Optional)</label>
+                <input type="text" value={stockReason} onChange={e => setStockReason(e.target.value)}
+                  placeholder="e.g. Vendor shipment, Customer invoice, Physical audit"
+                  style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none", boxSizing:"border-box" }}
+                  onFocus={e => e.target.style.borderColor="#4edea3"}
+                  onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"} />
+              </div>
+
+              <div>
+                <label style={{ display:"block", marginBottom:6, fontSize:13, fontWeight:500, color:"#8aa0b8" }}>Reference # (Optional)</label>
+                <input type="text" value={stockReference} onChange={e => setStockReference(e.target.value)}
+                  placeholder="e.g. PO-1049, INV-8821, AUDIT-01"
+                  style={{ width:"100%", padding:"11px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,.08)", background:"rgba(16,32,52,.8)", color:"#d3e4fe", fontSize:14, outline:"none", boxSizing:"border-box" }}
                   onFocus={e => e.target.style.borderColor="#4edea3"}
                   onBlur={e  => e.target.style.borderColor="rgba(255,255,255,.08)"} />
               </div>
@@ -643,6 +751,174 @@ function Products() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------
+          STOCK MOVEMENT AUDIT LEDGER MODAL
+      -------------------------------------------------- */}
+      {showHistoryModal && (
+        <div style={{ position:"fixed", inset:0, zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,.75)", padding:20, backdropFilter:"blur(8px)" }}>
+          <div style={{ width:"100%", maxWidth:880, maxHeight:"90vh", display:"flex", flexDirection:"column", background:"rgba(11,28,48,.98)", border:"1px solid rgba(255,255,255,.12)", borderRadius:20, padding:28, boxShadow:"0 40px 100px rgba(0,0,0,.6)", overflow:"hidden" }}>
+            
+            {/* Modal Header */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+              <div>
+                <p style={{ fontSize:12, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:"#4cd7f6", marginBottom:4 }}>Audit Trail</p>
+                <h2 style={{ fontSize:22, fontWeight:700, fontFamily:"'Plus Jakarta Sans',sans-serif", color:"#d3e4fe", marginBottom:4 }}>
+                  {historyProduct ? `Movement History: ${historyProduct.name}` : "Global Stock Movement Ledger"}
+                </h2>
+                <p style={{ fontSize:13, color:"#8aa0b8" }}>
+                  {historyProduct ? `SKU: ${historyProduct.sku} | Track all inbound, outbound, and adjustment events.` : "Live chronological ledger of all inventory transactions."}
+                </p>
+              </div>
+              <button onClick={() => setShowHistoryModal(false)}
+                style={{ background:"rgba(255,255,255,.06)", border:"none", color:"#8aa0b8", width:36, height:36, borderRadius:10, fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"background .2s" }}>✕</button>
+            </div>
+
+            {/* Summary Statistics Bar */}
+            {historySummary && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:12, marginBottom:20 }}>
+                <div style={{ background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, padding:"12px 16px" }}>
+                  <span style={{ fontSize:11, color:"#8aa0b8", textTransform:"uppercase", letterSpacing:".05em" }}>Transactions</span>
+                  <p style={{ fontSize:20, fontWeight:700, color:"#d3e4fe", marginTop:2 }}>{historySummary.totalTransactions || 0}</p>
+                </div>
+                <div style={{ background:"rgba(78,222,163,.06)", border:"1px solid rgba(78,222,163,.2)", borderRadius:12, padding:"12px 16px" }}>
+                  <span style={{ fontSize:11, color:"#8aa0b8", textTransform:"uppercase", letterSpacing:".05em" }}>Units In</span>
+                  <p style={{ fontSize:20, fontWeight:700, color:"#4edea3", marginTop:2 }}>+{historySummary.totalUnitsIn || 0}</p>
+                </div>
+                <div style={{ background:"rgba(255,100,100,.06)", border:"1px solid rgba(255,100,100,.2)", borderRadius:12, padding:"12px 16px" }}>
+                  <span style={{ fontSize:11, color:"#8aa0b8", textTransform:"uppercase", letterSpacing:".05em" }}>Units Out</span>
+                  <p style={{ fontSize:20, fontWeight:700, color:"#fca5a5", marginTop:2 }}>-{historySummary.totalUnitsOut || 0}</p>
+                </div>
+                <div style={{ background:"rgba(76,215,246,.06)", border:"1px solid rgba(76,215,246,.2)", borderRadius:12, padding:"12px 16px" }}>
+                  <span style={{ fontSize:11, color:"#8aa0b8", textTransform:"uppercase", letterSpacing:".05em" }}>Net Delta</span>
+                  <p style={{ fontSize:20, fontWeight:700, color:"#4cd7f6", marginTop:2 }}>
+                    {(historySummary.netStockChange || 0) > 0 ? "+" : ""}{historySummary.netStockChange || 0}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Content List */}
+            <div style={{ flex:1, overflowY:"auto", paddingRight:4 }}>
+              {historyLoading ? (
+                <div style={{ padding:"48px 0", textAlign:"center", color:"#8aa0b8" }}>
+                  <div style={{ display:"inline-block", width:32, height:32, border:"3px solid rgba(76,215,246,.2)", borderTopColor:"#4cd7f6", borderRadius:"50%", animation:"spin 1s linear infinite" }} />
+                  <p style={{ marginTop:12, fontSize:14 }}>Fetching movement records from microservice...</p>
+                </div>
+              ) : historyMovements.length === 0 ? (
+                <div style={{ padding:"48px 0", textAlign:"center", color:"#8aa0b8" }}>
+                  <p style={{ fontSize:15, fontWeight:600, color:"#d3e4fe" }}>No stock movements recorded yet</p>
+                  <p style={{ fontSize:13, color:"#5a7a9a", marginTop:4 }}>Perform stock adjustments or inbound receipts to generate ledger audit logs.</p>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {historyMovements.map((movement) => {
+                    const isPositive = (movement.delta || 0) > 0;
+                    const typeLabel = {
+                      received: "Received / Inbound",
+                      returned: "Customer Return",
+                      sold: "Sold / Dispatched",
+                      damaged: "Damaged / Waste",
+                      lost: "Lost / Shrinkage",
+                      adjustment: "Audit Adjustment",
+                      audit_adjustment: "Audit Reconciliation",
+                    }[movement.type] || movement.type;
+
+                    const badgeStyle = isPositive
+                      ? { bg: "rgba(78,222,163,.12)", color: "#4edea3", border: "rgba(78,222,163,.3)" }
+                      : { bg: "rgba(255,100,100,.12)", color: "#fca5a5", border: "rgba(255,100,100,.3)" };
+
+                    const dateStr = movement.createdAt
+                      ? typeof movement.createdAt === "string"
+                        ? new Date(movement.createdAt).toLocaleString()
+                        : movement.createdAt._seconds
+                        ? new Date(movement.createdAt._seconds * 1000).toLocaleString()
+                        : "Just now"
+                      : "Recent";
+
+                    return (
+                      <div key={movement.id}
+                        style={{
+                          background:"rgba(255,255,255,.025)",
+                          border:"1px solid rgba(255,255,255,.06)",
+                          borderRadius:14,
+                          padding:"14px 18px",
+                          display:"flex",
+                          flexWrap:"wrap",
+                          justifyContent:"space-between",
+                          alignItems:"center",
+                          gap:12,
+                          transition:"background .15s ease",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,.045)"}
+                        onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,.025)"}
+                      >
+                        <div style={{ display:"flex", flexDirection:"column", gap:4, minWidth:200 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            <span style={{
+                              padding:"2px 8px",
+                              borderRadius:6,
+                              fontSize:11,
+                              fontWeight:700,
+                              textTransform:"uppercase",
+                              background: badgeStyle.bg,
+                              color: badgeStyle.color,
+                              border: `1px solid ${badgeStyle.border}`,
+                            }}>
+                              {typeLabel}
+                            </span>
+                            {!historyProduct && (
+                              <span style={{ fontWeight:600, fontSize:13, color:"#d3e4fe" }}>
+                                {movement.productName || "Product"} <span style={{ color:"#5a7a9a", fontSize:12 }}>({movement.sku})</span>
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ fontSize:13, color:"#8aa0b8", margin:0 }}>
+                            {movement.reason || "Manual inventory action"}
+                            {movement.referenceNumber && (
+                              <span style={{ marginLeft:8, padding:"1px 6px", borderRadius:4, background:"rgba(255,255,255,.05)", color:"#4cd7f6", fontFamily:"'JetBrains Mono',monospace", fontSize:11 }}>
+                                Ref: {movement.referenceNumber}
+                              </span>
+                            )}
+                          </p>
+                          <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:12, color:"#5a7a9a" }}>
+                            <span>{dateStr}</span>
+                            <span>•</span>
+                            <span>By: {movement.recordedBy || "System"}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign:"right", minWidth:120 }}>
+                          <p style={{
+                            fontSize:18,
+                            fontWeight:800,
+                            fontFamily:"'JetBrains Mono',monospace",
+                            color: isPositive ? "#4edea3" : "#fca5a5",
+                            margin:0,
+                          }}>
+                            {isPositive ? `+${movement.quantity}` : `-${movement.quantity}`}
+                          </p>
+                          <p style={{ fontSize:12, color:"#8aa0b8", margin:"2px 0 0" }}>
+                            Stock: {movement.previousStock} → <strong style={{ color:"#d3e4fe" }}>{movement.newStock}</strong>
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ marginTop:20, paddingTop:16, borderTop:"1px solid rgba(255,255,255,.08)", display:"flex", justifyContent:"flex-end" }}>
+              <button onClick={() => setShowHistoryModal(false)}
+                style={{ padding:"10px 20px", borderRadius:10, border:"1px solid rgba(255,255,255,.12)", background:"rgba(255,255,255,.05)", color:"#d3e4fe", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+                Close Ledger
+              </button>
+            </div>
           </div>
         </div>
       )}
