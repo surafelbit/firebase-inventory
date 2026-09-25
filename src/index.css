@@ -851,3 +851,182 @@ img { display: block; max-width: 100%; }
     gap: 16px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   COMMAND CENTER DESIGN SYSTEM TOKENS & UTILITIES
+   Theme: Sleek Dark Command Center & Inventory Intelligence
+───────────────────────────────────────────────────────────── */
+:root {
+  --cc-bg-base: #020813;
+  --cc-bg-surface: #061325;
+  --cc-bg-card: rgba(8, 22, 41, 0.76);
+  --cc-bg-card-hover: rgba(13, 31, 57, 0.88);
+  --cc-bg-card-solid: #091b32;
+  
+  --cc-border: rgba(255, 255, 255, 0.08);
+  --cc-border-subtle: rgba(255, 255, 255, 0.04);
+  --cc-border-active: rgba(255, 255, 255, 0.18);
+  
+  --cc-emerald: #10b981;
+  --cc-emerald-light: #34d399;
+  --cc-emerald-dim: rgba(16, 185, 129, 0.12);
+  --cc-emerald-border: rgba(16, 185, 129, 0.28);
+  --cc-emerald-glow: rgba(16, 185, 129, 0.35);
+
+  --cc-cyan: #06b6d4;
+  --cc-cyan-light: #38bdf8;
+  --cc-cyan-dim: rgba(6, 182, 212, 0.12);
+  --cc-cyan-border: rgba(6, 182, 212, 0.28);
+  --cc-cyan-glow: rgba(6, 182, 212, 0.3);
+
+  --cc-amber: #f59e0b;
+  --cc-amber-dim: rgba(245, 158, 11, 0.12);
+  --cc-amber-border: rgba(245, 158, 11, 0.28);
+  
+  --cc-rose: #f43f5e;
+  --cc-rose-dim: rgba(244, 63, 94, 0.12);
+  --cc-rose-border: rgba(244, 63, 94, 0.28);
+
+  --cc-text-primary: #f8fafc;
+  --cc-text-secondary: #94a3b8;
+  --cc-text-muted: #64748b;
+  --cc-text-dim: #475569;
+}
+
+/* Custom Sleek Dark Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(2, 8, 19, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Pulse beacon animations */
+@keyframes cc-beacon-ping {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes cc-beacon-amber {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+@keyframes cc-beacon-rose {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(244, 63, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+
+@keyframes cc-modal-enter {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Command Center Glass Cards */
+.cc-card {
+  background: var(--cc-bg-card);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--cc-border);
+  border-radius: 16px;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cc-card:hover {
+  border-color: var(--cc-border-active);
+  background: var(--cc-bg-card-hover);
+}
+
+.cc-card--accent-emerald {
+  border-top: 2px solid var(--cc-emerald);
+}
+.cc-card--accent-cyan {
+  border-top: 2px solid var(--cc-cyan);
+}
+.cc-card--accent-amber {
+  border-top: 2px solid var(--cc-amber);
+}
+.cc-card--accent-rose {
+  border-top: 2px solid var(--cc-rose);
+}
+
+/* Telemetry Badge */
+.cc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+.cc-badge--emerald {
+  background: var(--cc-emerald-dim);
+  color: var(--cc-emerald-light);
+  border: 1px solid var(--cc-emerald-border);
+}
+.cc-badge--cyan {
+  background: var(--cc-cyan-dim);
+  color: var(--cc-cyan-light);
+  border: 1px solid var(--cc-cyan-border);
+}
+.cc-badge--amber {
+  background: var(--cc-amber-dim);
+  color: #fbbf24;
+  border: 1px solid var(--cc-amber-border);
+}
+.cc-badge--rose {
+  background: var(--cc-rose-dim);
+  color: #fb7185;
+  border: 1px solid var(--cc-rose-border);
+}
+.cc-badge--purple {
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+}
+.cc-badge--slate {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Glowing dot beacons */
+.cc-dot-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cc-emerald);
+  display: inline-block;
+  animation: cc-beacon-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.cc-dot-amber {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cc-amber);
+  display: inline-block;
+  animation: cc-beacon-amber 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.cc-dot-rose {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cc-rose);
+  display: inline-block;
+  animation: cc-beacon-rose 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
