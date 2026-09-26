@@ -55,6 +55,20 @@ function NavLinkItem({ path, label, tag, icon, isActive, onClick }) {
     <Link
       to={path}
       onClick={onClick}
+      onFocus={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+          e.currentTarget.style.color = "#f1f5f9";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
+        }
+      }}
+      onBlur={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = "#94a3b8";
+          e.currentTarget.style.borderColor = "transparent";
+        }
+      }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -373,6 +387,16 @@ function Sidebar({ onCloseMobile }) {
             cursor: "pointer",
             textAlign: "left",
             transition: "all .18s cubic-bezier(0.16, 1, 0.3, 1)"
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.background = "rgba(244,63,94,0.1)";
+            e.currentTarget.style.color = "#fb7185";
+            e.currentTarget.style.borderColor = "rgba(244,63,94,0.25)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "#94a3b8";
+            e.currentTarget.style.borderColor = "transparent";
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "rgba(244,63,94,0.1)";
